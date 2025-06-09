@@ -1,0 +1,126 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Minimalist Dark Theme Palette (Kirvano-inspired) */
+  --color-primary-DEFAULT: #FDE047; /* yellow-400 */
+  --color-primary-light: #FEF08A;   /* yellow-200 */
+  --color-primary-dark: #FACC15;    /* yellow-500 */
+
+  /* Secondary can be green, but used sparingly */
+  --color-secondary-DEFAULT: #22C55E; /* green-500 */
+  --color-secondary-light: #86EFAC;   /* green-300 */
+  --color-secondary-dark: #15803D;    /* green-700 */
+  
+  /* For Checkout Page specific primary color override */
+  --color-checkout-primary: var(--color-primary-DEFAULT); 
+  /* For Checkout Page CTA button text color, dynamically set by JS for contrast */
+  --color-checkout-cta-text: #111827; /* Default to dark text */
+
+  /* Minimalist Dark Neutrals */
+  --color-neutral-50: #F9FAFB;    /* gray-50 (for light mode elements if ever needed) */
+  --color-neutral-100: #F3F4F6;   /* gray-100 (light text on dark alternative) */
+  --color-neutral-200: #E5E7EB;   /* gray-200 (main light text color) */
+  --color-neutral-300: #D1D5DB;   /* gray-300 (secondary light text) */
+  --color-neutral-400: #9CA3AF;   /* gray-400 (placeholder/muted text) */
+  --color-neutral-500: #6B7280;   /* gray-500 (subtle borders/elements) */
+  --color-neutral-600: #4B5563;   /* gray-600 (darker borders, hover elements) */
+  --color-neutral-700: #374151;   /* gray-700 (slightly lighter dark bg, e.g. input borders, primary button bg) */
+  --color-neutral-800: #1F2937;   /* gray-800 (card/surface background) */
+  --color-neutral-900: #111827;   /* gray-900 (main body background) */
+  --color-neutral-950: #030712;   /* gray-950 (deepest bg, e.g. AuthPage gradient if used) */
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  @apply bg-neutral-900 text-neutral-200; /* Base dark theme */
+  font-family: 'Inter', sans-serif;
+}
+
+/* Default text color for light background pages (e.g., Checkout) if not otherwise styled */
+.light-bg-text-default {
+  @apply text-neutral-800;
+}
+
+
+/* Custom placeholder for contentEditable divs in MiniEditor */
+div[contenteditable="true"][data-placeholder] {
+    position: relative;
+    cursor: text;
+}
+
+/* Adjusted placeholder positioning for MiniEditor */
+div[contenteditable="true"][data-placeholder].is-empty-placeholder::before {
+    content: attr(data-placeholder);
+    position: absolute;
+    left: 0.75rem; /* Corresponds to px-3 */
+    top: 0.625rem;  /* Corresponds to py-2.5, adjust if padding changes */
+    font-style: normal;
+    color: var(--color-neutral-400); /* Dark theme placeholder text */
+    pointer-events: none;
+    opacity: 0.8;
+    max-width: calc(100% - 1.5rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap; 
+}
+
+/* Custom Scrollbar Styles (WebKit) for Dark Theme */
+::-webkit-scrollbar {
+  width: 10px; 
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-neutral-800; 
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-neutral-600; 
+  border-radius: 10px;
+  border: 2px solid var(--color-neutral-800); 
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-neutral-500; 
+}
+
+/* Checkout Page Light Theme Specifics */
+.checkout-light-theme {
+  @apply bg-neutral-100 text-neutral-800;
+}
+.checkout-light-theme h1, 
+.checkout-light-theme h2, 
+.checkout-light-theme h3, 
+.checkout-light-theme h4 {
+  @apply text-neutral-800;
+}
+.checkout-light-theme p,
+.checkout-light-theme span,
+.checkout-light-theme div:not([class*="bg-"]) /* Apply to divs without explicit bg to avoid overriding cards */ {
+  @apply text-neutral-700;
+}
+.checkout-light-theme label {
+  @apply text-neutral-700;
+}
+.checkout-light-theme .prose { /* For sales copy */
+  @apply text-neutral-700;
+}
+.checkout-light-theme .prose h1,
+.checkout-light-theme .prose h2,
+.checkout-light-theme .prose h3,
+.checkout-light-theme .prose strong {
+   @apply text-neutral-800;
+}
+
+.checkout-light-theme .inputLightStyle {
+   @apply bg-white border-neutral-300 text-neutral-800 placeholder-neutral-500 focus:border-[var(--color-checkout-primary)] focus:ring-1 focus:ring-[var(--color-checkout-primary)];
+}
+.checkout-light-theme .labelLightStyle {
+  @apply text-neutral-700;
+}
