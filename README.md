@@ -13,3 +13,4 @@ This contains everything you need to run your app locally.
 3. Run the app:
    `npm run dev`
 # 1Checkout-Studio
+# 1check1
