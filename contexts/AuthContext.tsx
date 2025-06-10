@@ -42,7 +42,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return null;
     }
 
-    // If a previous fetch is in progress, abort it.
     if (profileFetchControllerRef.current) {
       profileFetchControllerRef.current.abort();
     }
@@ -58,14 +57,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .select('*')
         .eq('id', supabaseUser.id)
         .single<ProfileRow>();
-        // .abortSignal(signal); // Removed due to TS error: Property 'abortSignal' does not exist on type 'PostgrestBuilder<...>'.
-                                // This means the underlying Supabase request will not be directly aborted by this signal.
-                                // The Promise.race will still handle the timeout behavior for the application logic.
-                                // Consider updating Supabase client and types if abortSignal is expected.
 
       const timeoutPromise = new Promise((resolve, reject) => {
         const timer = setTimeout(() => resolve(TIMEOUT_SYMBOL), PROFILE_FETCH_TIMEOUT);
-        // Clear timeout if the signal is aborted
         signal.addEventListener('abort', () => {
           clearTimeout(timer);
           reject(new DOMException('Aborted', 'AbortError'));
@@ -76,13 +70,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (signal.aborted) {
         console.log(`AuthContext: fetchUserProfile - Aborted for user ${supabaseUser.id}.`);
-        // Return a consistent fallback or null
         return {
           id: supabaseUser.id,
           email: supabaseUser.email || '',
           name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Usuário (Abortado)',
-          isSuperAdmin: supabaseUser.email === SUPER_ADMIN_EMAIL,
-          isActive: true, 
+          isSuperAdmin: (supabaseUser.email === SUPER_ADMIN_EMAIL), // Default if aborted
+          isActive: true, // Default if aborted
           createdAt: supabaseUser.created_at,
         };
       }
@@ -108,7 +101,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           id: supabaseUser.id,
           email: supabaseUser.email || '',
           name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Usuário (Sem Perfil DB)',
-          isSuperAdmin: supabaseUser.email === SUPER_ADMIN_EMAIL,
+          isSuperAdmin: (supabaseUser.email === SUPER_ADMIN_EMAIL),
           isActive: true, 
           createdAt: supabaseUser.created_at,
         };
@@ -120,7 +113,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             id: supabaseUser.id,
             email: supabaseUser.email || '',
             name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Usuário (Perfil Vazio DB)',
-            isSuperAdmin: supabaseUser.email === SUPER_ADMIN_EMAIL,
+            isSuperAdmin: (supabaseUser.email === SUPER_ADMIN_EMAIL),
             isActive: true, 
             createdAt: supabaseUser.created_at,
         };
@@ -130,8 +123,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: supabaseUser.id,
         email: supabaseUser.email || (profileData.email || ''),
         name: profileData.name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Usuário',
-        isSuperAdmin: profileData.is_super_admin || (supabaseUser.email === SUPER_ADMIN_EMAIL),
-        isActive: profileData.is_active !== undefined ? profileData.is_active : true,
+        isSuperAdmin: (profileData.is_super_admin ?? false) || (supabaseUser.email === SUPER_ADMIN_EMAIL),
+        isActive: profileData.is_active ?? true, // Default to true if null/undefined from DB
         createdAt: profileData.created_at || supabaseUser.created_at,
       };
 
@@ -141,20 +134,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         console.error(`AuthContext: fetchUserProfile - GENERAL EXCEPTION during profile fetch for user ${supabaseUser.id}:`, fetchError.message, fetchError.stack, fetchError);
       }
-      return { // Fallback user for any error, including AbortError
+      return {
         id: supabaseUser.id,
         email: supabaseUser.email || '',
         name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Usuário (Exceção Perfil)',
-        isSuperAdmin: supabaseUser.email === SUPER_ADMIN_EMAIL,
+        isSuperAdmin: (supabaseUser.email === SUPER_ADMIN_EMAIL),
         isActive: true,
         createdAt: supabaseUser.created_at,
       };
     } finally {
-       if (profileFetchControllerRef.current === controller) { // Only clear if it's the controller we created for this call
+       if (profileFetchControllerRef.current === controller) {
          profileFetchControllerRef.current = null;
        }
     }
-  }, []); // Dependencies are empty as it's self-contained now with AbortController logic
+  }, []);
 
   const processSessionAndUser = useCallback(async (currentSession: Session | null) => {
     if (!mountedRef.current) {
@@ -218,7 +211,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       mountedRef.current = false;
       authListener?.subscription?.unsubscribe();
-      // Abort any ongoing profile fetch when the provider unmounts
       if (profileFetchControllerRef.current) {
         profileFetchControllerRef.current.abort();
         profileFetchControllerRef.current = null;
@@ -269,8 +261,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const isAuthenticated = !!session && !!user && user.isActive !== false;
-  const isSuperAdminValue = isAuthenticated && !!user?.isSuperAdmin;
+  const isAuthenticated = !!session && !!user && (user.isActive ?? true); // Assume true if isActive is null/undefined
+  const isSuperAdminValue = isAuthenticated && (user?.isSuperAdmin ?? false);
   const accessToken = session?.access_token || null;
 
   const contextValue = useMemo(() => ({

@@ -8,7 +8,6 @@ type AppSettingsRow = Database['public']['Tables']['app_settings']['Row'];
 type AppSettingsInsert = Database['public']['Tables']['app_settings']['Insert']; // Use Insert type for upsert payload
 
 type PlatformSettingsRow = Database['public']['Tables']['platform_settings']['Row'];
-// type PlatformSettingsInsert = Database['public']['Tables']['platform_settings']['Insert']; // Referenced via Database type directly
 
 const parseJsonField = <T>(field: Json | null | undefined, defaultValue: T): T => {
   if (field === null || field === undefined) {
@@ -45,25 +44,25 @@ const fromSupabaseAppSettingsRow = (row: AppSettingsRow | null): AppSettings => 
   const storedPixelIntegrations = parseJsonField<PixelIntegration[]>(row.pixel_integrations, defaults.pixelIntegrations || []);
 
   return {
-    customDomain: row.custom_domain || defaults.customDomain,
+    customDomain: row.custom_domain ?? defaults.customDomain,
     checkoutIdentity: {
-      logoUrl: storedCheckoutIdentity?.logoUrl || defaults.checkoutIdentity.logoUrl,
-      faviconUrl: storedCheckoutIdentity?.faviconUrl || defaults.checkoutIdentity.faviconUrl,
-      brandColor: storedCheckoutIdentity?.brandColor || defaults.checkoutIdentity.brandColor,
+      logoUrl: storedCheckoutIdentity?.logoUrl ?? defaults.checkoutIdentity.logoUrl,
+      faviconUrl: storedCheckoutIdentity?.faviconUrl ?? defaults.checkoutIdentity.faviconUrl,
+      brandColor: storedCheckoutIdentity?.brandColor ?? defaults.checkoutIdentity.brandColor,
     },
     smtpSettings: {
-      host: storedSmtpSettings?.host || defaults.smtpSettings!.host,
-      port: storedSmtpSettings?.port || defaults.smtpSettings!.port,
-      user: storedSmtpSettings?.user || defaults.smtpSettings!.user,
-      pass: storedSmtpSettings?.pass || defaults.smtpSettings!.pass,
+      host: storedSmtpSettings?.host ?? defaults.smtpSettings!.host,
+      port: storedSmtpSettings?.port ?? defaults.smtpSettings!.port,
+      user: storedSmtpSettings?.user ?? defaults.smtpSettings!.user,
+      pass: storedSmtpSettings?.pass ?? defaults.smtpSettings!.pass,
     },
     apiTokens: {
-        pushinPay: storedApiTokens?.pushinPay || defaults.apiTokens.pushinPay,
-        utmify: storedApiTokens?.utmify || defaults.apiTokens.utmify,
-        pushinPayEnabled: storedApiTokens?.pushinPayEnabled === null || storedApiTokens?.pushinPayEnabled === undefined ? defaults.apiTokens.pushinPayEnabled : storedApiTokens.pushinPayEnabled,
-        utmifyEnabled: storedApiTokens?.utmifyEnabled === null || storedApiTokens?.utmifyEnabled === undefined ? defaults.apiTokens.utmifyEnabled : storedApiTokens.utmifyEnabled,
+        pushinPay: storedApiTokens?.pushinPay ?? defaults.apiTokens.pushinPay,
+        utmify: storedApiTokens?.utmify ?? defaults.apiTokens.utmify,
+        pushinPayEnabled: storedApiTokens?.pushinPayEnabled ?? defaults.apiTokens.pushinPayEnabled,
+        utmifyEnabled: storedApiTokens?.utmifyEnabled ?? defaults.apiTokens.utmifyEnabled,
     },
-    pixelIntegrations: storedPixelIntegrations || [], 
+    pixelIntegrations: storedPixelIntegrations ?? [], 
   };
 };
 
@@ -71,7 +70,6 @@ const toSupabaseAppSettingsDbObjectForUpsert = (userId: string, settings: Partia
   const dbObject: AppSettingsInsert = {
     platform_user_id: userId,
     updated_at: new Date().toISOString(),
-    // Initialize optional fields to prevent them from being undefined if not in settings
     custom_domain: settings.customDomain !== undefined ? settings.customDomain : null,
     checkout_identity: settings.checkoutIdentity !== undefined ? settings.checkoutIdentity as unknown as Json : null,
     smtp_settings: settings.smtpSettings !== undefined ? settings.smtpSettings as unknown as Json : null,
@@ -79,7 +77,6 @@ const toSupabaseAppSettingsDbObjectForUpsert = (userId: string, settings: Partia
     pixel_integrations: settings.pixelIntegrations !== undefined ? settings.pixelIntegrations as unknown as Json : null,
   };
   
-  // Override with actual values from settings if they exist
   if (settings.customDomain !== undefined) dbObject.custom_domain = settings.customDomain;
   if (settings.checkoutIdentity !== undefined) dbObject.checkout_identity = settings.checkoutIdentity as unknown as Json;
   if (settings.smtpSettings !== undefined) dbObject.smtp_settings = settings.smtpSettings as unknown as Json;
@@ -113,7 +110,7 @@ export const settingsService = {
     try {
       const { data, error } = await supabase.from('app_settings').select('*').eq('platform_user_id', userId).single(); 
       if (error && error.code !== 'PGRST116') { 
-        console.error('Supabase getAppSettings error:', error.message, error.details, error.hint, error.code); 
+        console.error('Supabase getAppSettings error:', error.message, `Details: ${error.details}`, `Hint: ${error.hint}`, `Code: ${error.code}`); 
         throw new Error(error.message || 'Falha ao buscar configurações do usuário');
       }
       return fromSupabaseAppSettingsRow(data as AppSettingsRow | null);
@@ -129,13 +126,14 @@ export const settingsService = {
         .from('app_settings')
         .select('*')
         .eq('platform_user_id', targetUserId)
-        .single();
+        .limit(1); 
 
-      if (error && error.code !== 'PGRST116') {
-        console.error(`Supabase getAppSettingsByUserId (target: ${targetUserId}) error:`, error.message, error.details, error.hint, error.code);
+      if (error) {
+        console.error(`Supabase getAppSettingsByUserId (target: ${targetUserId}) error:`, error.message, `Details: ${error.details}`, `Hint: ${error.hint}`, `Code: ${error.code}`);
         throw new Error(error.message || `Falha ao buscar configurações para o usuário ${targetUserId}`);
       }
-      return fromSupabaseAppSettingsRow(data as AppSettingsRow | null);
+      const rowData = data && data.length > 0 ? data[0] : null;
+      return fromSupabaseAppSettingsRow(rowData as AppSettingsRow | null);
     } catch (error: any) {
       console.error(`Exception in getAppSettingsByUserId (target: ${targetUserId}):`, error);
       throw new Error(error.message || `Falha geral ao buscar configurações para o usuário ${targetUserId}`);
@@ -156,7 +154,7 @@ export const settingsService = {
         .single();
         
       if (error) { 
-        console.error('Supabase saveAppSettings error:', error.message, error.details, error.hint, error.code); 
+        console.error('Supabase saveAppSettings error:', error.message, `Details: ${error.details}`, `Hint: ${error.hint}`, `Code: ${error.code}`); 
         throw new Error(error.message || 'Falha ao salvar configurações do usuário'); 
       }
       if (!data) throw new Error('Falha ao salvar configurações, dados não retornados.');
@@ -171,7 +169,7 @@ export const settingsService = {
     try {
       const { data, error } = await supabase.from('platform_settings').select('*').eq('id', 'global').single(); 
       if (error && error.code !== 'PGRST116') { 
-        console.error('Supabase getPlatformSettings error:', error.message, error.details, error.hint, error.code); 
+        console.error('Supabase getPlatformSettings error:', error.message, `Details: ${error.details}`, `Hint: ${error.hint}`, `Code: ${error.code}`); 
         throw new Error(error.message || 'Falha ao buscar configurações da plataforma'); 
       }
       return fromSupabasePlatformSettingsRow(data as PlatformSettingsRow | null);
@@ -182,7 +180,7 @@ export const settingsService = {
   },
 
   savePlatformSettings: async (settings: Partial<PlatformSettings>, _token?: string | null): Promise<PlatformSettings> => {
-    const dataForUpsert: Database['public']['Tables']['platform_settings']['Insert'] = { // Explicitly re-asserting the type
+    const dataForUpsert: Database['public']['Tables']['platform_settings']['Insert'] = { 
         id: 'global',
         platform_commission_percentage: settings.platformCommissionPercentage ?? 0,
         platform_fixed_fee_in_cents: settings.platformFixedFeeInCents ?? 0,       
@@ -198,7 +196,7 @@ export const settingsService = {
         .single();
 
       if (error) { 
-        console.error('Supabase savePlatformSettings error:', error.message, error.details, error.hint, error.code); 
+        console.error('Supabase savePlatformSettings error:', error.message, `Details: ${error.details}`, `Hint: ${error.hint}`, `Code: ${error.code}`); 
         if (error.details) console.error('Supabase error details:', error.details);
         if (error.hint) console.error('Supabase error hint:', error.hint);
         throw new Error(error.message || 'Falha ao salvar configurações da plataforma');
@@ -211,5 +209,3 @@ export const settingsService = {
     }
   },
 };
-
-    

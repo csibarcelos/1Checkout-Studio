@@ -6,13 +6,11 @@ import { AuthUser } from '@supabase/supabase-js';
 
 export const authService = {
   async getCurrentSupabaseUser(): Promise<AuthUser | null> {
-    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const { data: { session } } = await supabase.auth.getSession();
     return session?.user || null;
   },
 
   async getCurrentAppUser(): Promise<AppUser | null> {
-    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return null;
 
@@ -34,7 +32,8 @@ export const authService = {
             email: session.user.email || '',
             name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
             isSuperAdmin: (session.user.email === SUPER_ADMIN_EMAIL), 
-            isActive: true, 
+            isActive: true, // Default to true if no profile
+            createdAt: session.user.created_at,
          };
       }
 
@@ -42,8 +41,8 @@ export const authService = {
         id: session.user.id,
         email: session.user.email || '',
         name: profile.name || session.user.user_metadata?.name,
-        isSuperAdmin: profile.is_super_admin || false,
-        isActive: profile.is_active !== undefined ? profile.is_active : true,
+        isSuperAdmin: profile.is_super_admin ?? false, // Ensure boolean
+        isActive: profile.is_active ?? true, // Ensure boolean, default to true if null
         createdAt: profile.created_at || session.user.created_at,
       };
 
@@ -54,7 +53,6 @@ export const authService = {
   },
 
   async getToken(): Promise<string | null> {
-    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token || null;
   }

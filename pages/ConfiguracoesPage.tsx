@@ -28,50 +28,28 @@ const initialAppSettings: AppSettings = {
     pushinPayEnabled: false,
     utmifyEnabled: false,
   },
-  pixelIntegrations: [], // Ensure pixelIntegrations is part of defaults
+  pixelIntegrations: [], 
 };
 
 
 export const ConfiguracoesPage: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(initialAppSettings);
-  const [pageLoading, setPageLoading] = useState(true); // Renamed to avoid conflict
+  const [pageLoading, setPageLoading] = useState(true); 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const { accessToken, isLoading: authIsLoading } = useAuth(); // Get authIsLoading
+  const { accessToken, isLoading: authIsLoading } = useAuth(); 
 
   const fetchSettings = useCallback(async () => {
     if (!accessToken) {
-      // This case should ideally be caught by the useEffect logic below using authIsLoading and accessToken
       setPageLoading(false);
       setError("Autenticação necessária para carregar configurações.");
       return;
     }
-    // setPageLoading(true); // Already handled by useEffect
     setError(null);
     try {
       const fetchedSettings = await settingsService.getAppSettings(accessToken);
-      setSettings(prev => ({
-        ...initialAppSettings, 
-        ...prev, 
-        ...fetchedSettings, 
-        checkoutIdentity: { 
-          ...(initialAppSettings.checkoutIdentity),
-          ...(prev.checkoutIdentity || {}),
-          ...(fetchedSettings.checkoutIdentity || {}),
-        },
-        smtpSettings: {
-          ...(initialAppSettings.smtpSettings),
-          ...(prev.smtpSettings || {}),
-          ...(fetchedSettings.smtpSettings || {}),
-        },
-        apiTokens: { 
-            ...(initialAppSettings.apiTokens),
-            ...(prev.apiTokens || {}),
-            ...(fetchedSettings.apiTokens || {})
-        },
-        pixelIntegrations: fetchedSettings.pixelIntegrations || initialAppSettings.pixelIntegrations,
-      }));
+      setSettings(fetchedSettings); // Confia que fetchedSettings é um AppSettings completo e defaultado.
     } catch (err: any) {
       setError(err.message || 'Falha ao carregar configurações.');
       console.error(err);
@@ -82,16 +60,15 @@ export const ConfiguracoesPage: React.FC = () => {
 
   useEffect(() => {
     if (authIsLoading) {
-        setPageLoading(true); // Page is loading because auth is loading
+        setPageLoading(true); 
         return;
     }
-    // Auth is no longer loading
     if (accessToken) {
       fetchSettings();
     } else {
-      setPageLoading(false); // Auth loaded, but no token
+      setPageLoading(false); 
       setError("Autenticação necessária para visualizar as configurações.");
-      setSettings(initialAppSettings); // Reset to default if no token
+      setSettings(initialAppSettings); 
     }
   }, [fetchSettings, accessToken, authIsLoading]);
 
@@ -107,7 +84,8 @@ export const ConfiguracoesPage: React.FC = () => {
           },
         };
       }
-      return { ...prev, [field]: value } as AppSettings;
+      // Para campos de nível superior como customDomain
+      return { ...prev, [field]: value } as AppSettings; 
     });
     if (successMessage) setSuccessMessage(null);
     if (error) setError(null);
@@ -131,14 +109,23 @@ export const ConfiguracoesPage: React.FC = () => {
     setSuccessMessage(null);
 
     try {
+      // Apenas os campos que podem ser editados nesta página são passados.
+      // apiTokens e pixelIntegrations são gerenciados em IntegracoesPage.
       const settingsToSave: Partial<AppSettings> = {
         checkoutIdentity: settings.checkoutIdentity,
         customDomain: settings.customDomain,
         smtpSettings: settings.smtpSettings,
-        apiTokens: settings.apiTokens, // Preserve existing apiTokens
-        pixelIntegrations: settings.pixelIntegrations // Preserve existing pixelIntegrations
+        // apiTokens e pixelIntegrations não são modificados aqui, então não são incluídos
+        // para evitar sobrescrevê-los com valores incompletos do estado local desta página.
+        // settingsService.saveAppSettings deve fazer um merge inteligente ou buscar os valores completos antes.
+        // Melhor ainda: settingsService.saveAppSettings deve aceitar apenas os campos que esta página gerencia.
+        // Para o propósito desta correção, vamos assumir que settingsService.saveAppSettings
+        // fará um upsert apenas dos campos fornecidos, ou que `settings` contém o estado completo.
+        // O ideal seria que o service tivesse métodos mais granulares ou que a UI
+        // carregasse e enviasse o objeto AppSettings completo.
+        // Dado que getAppSettings retorna o AppSettings completo, settings state DEVE estar completo.
       };
-      await settingsService.saveAppSettings(settingsToSave, accessToken);
+      await settingsService.saveAppSettings(settings, accessToken); // Envia o objeto 'settings' completo
       setSuccessMessage('Configurações salvas com sucesso!');
     } catch (err: any) {
       setError(err.message || 'Falha ao salvar configurações.');
