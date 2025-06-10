@@ -2,22 +2,27 @@
 export default {
   content: [
     "./index.html",
-    "./*.{js,ts,jsx,tsx}",
-    "./pages/**/*.{js,ts,jsx,tsx}",
-    "./components/**/*.{js,ts,jsx,tsx}",
+    "./App.tsx", // Adicionar App.tsx na raiz
+    "./constants.tsx", // Adicionar constants.tsx na raiz
+    "./types.ts", // Adicionar types.ts na raiz
+    "./contexts/**/*.{js,ts,jsx,tsx}", // Assumindo que contexts está na raiz
+    "./components/**/*.{js,ts,jsx,tsx}", // Assumindo que components está na raiz
+    "./pages/**/*.{js,ts,jsx,tsx}", // Assumindo que pages está na raiz
+    "./services/**/*.{js,ts,jsx,tsx}", // Assumindo que services está na raiz
+    // Adicione outros arquivos/pastas na raiz que contenham classes Tailwind
   ],
   theme: {
     extend: {
       colors: {
         primary: {
-          DEFAULT: 'var(--color-primary-DEFAULT)', // #FDE047 (yellow-400)
-          light: 'var(--color-primary-light)',   // #FEF08A (yellow-200)
-          dark: 'var(--color-primary-dark)',    // #FACC15 (yellow-500)
+          DEFAULT: 'var(--color-primary-DEFAULT)', 
+          light: 'var(--color-primary-light)',   
+          dark: 'var(--color-primary-dark)',    
         },
         secondary: { 
-          DEFAULT: 'var(--color-secondary-DEFAULT)', // #22C55E (green-500)
-          light: 'var(--color-secondary-light)',   // #86EFAC (green-300)
-          dark: 'var(--color-secondary-dark)',    // #15803D (green-700)
+          DEFAULT: 'var(--color-secondary-DEFAULT)', 
+          light: 'var(--color-secondary-light)',   
+          dark: 'var(--color-secondary-dark)',    
         },
         neutral: {
           50: 'var(--color-neutral-50)',

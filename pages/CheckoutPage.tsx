@@ -1,15 +1,19 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Product, PaymentStatus, PushInPayPixRequest, PushInPayPixResponse, SaleProductItem, Coupon, OrderBumpOffer, PushInPayPixResponseData } from '../types';
+import { Product, PaymentStatus, Coupon, OrderBumpOffer, PushInPayPixResponseData, AppSettings, PlatformSettings, SaleProductItem, PaymentMethod, Sale } from '../types';
 import { productService } from '../services/productService';
 import { abandonedCartService, CreateAbandonedCartPayload } from '../services/abandonedCartService';
-import { apiClient } from '../apiClient';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { MOCK_WEBHOOK_URL, CheckCircleIcon, PHONE_COUNTRY_CODES, DocumentDuplicateIcon } from '../constants';
+import { CheckCircleIcon, PHONE_COUNTRY_CODES, DocumentDuplicateIcon, TagIcon, MOCK_WEBHOOK_URL, PLATFORM_NAME } from '../constants'; // Removed DEFAULT_CURRENCY as it's not used here
+import { pushInPayService } from '../services/pushinPayService';
+import { settingsService } from '../services/settingsService';
+import { salesService } from '../services/salesService';
+import { utmifyService } from '../services/utmifyService';
+import { useAuth } from '../contexts/AuthContext';
 
 const LockClosedIconSolid = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
@@ -17,42 +21,18 @@ const LockClosedIconSolid = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-const TagIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
-    </svg>
-);
-
-const POLLING_INTERVAL = 5000;
-const PIX_EXPIRATION_MINUTES = 30;
-
 const formatCurrency = (valueInCents: number): string => {
     return `R$ ${(valueInCents / 100).toFixed(2).replace('.', ',')}`;
 };
 
-const formatPhoneNumberVisual = (value: string): string => {
-  const digits = value.replace(/\D/g, '');
+const formatPhoneNumberVisual = (digits: string): string => {
+  if (!digits) return '';
   if (digits.length <= 2) return `(${digits}`;
   if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
   if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`; // Handle longer inputs gracefully
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 };
-
-interface InternalGeneratePixPayload {
-  productId: string;
-  productSlug?: string;
-  customerName: string;
-  customerEmail: string;
-  customerWhatsapp: string;
-  products: SaleProductItem[];
-  trackingParameters?: Record<string, string>;
-  couponCodeUsed?: string;
-  discountAppliedInCents?: number;
-  originalValueBeforeDiscount: number;
-  value: number;
-}
 
 const getContrastingTextColor = (hexColor?: string): string => {
     if (!hexColor) return '#111827'; 
@@ -63,46 +43,62 @@ const getContrastingTextColor = (hexColor?: string): string => {
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       return luminance > 0.5 ? '#111827' : '#FFFFFF'; 
     } catch (e) {
-      return '#111827'; // Default to dark if parsing fails
+      return '#111827'; 
     }
 };
 
+const LOCALSTORAGE_CHECKOUT_KEY = 'checkoutFormData';
+const POLLING_INTERVAL = 5000; // 5 seconds
+const POLLING_TIMEOUT_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export const CheckoutPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { accessToken: loggedInUserToken } = useAuth(); // Token do usuário logado (pode não ser o dono do produto)
 
   const [product, setProduct] = useState<Product | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [ownerAppSettings, setOwnerAppSettings] = useState<AppSettings | null>(null);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+
+  const [isLoading, setIsLoading] = useState(true); // General page loading
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false); // For PIX generation/polling
   const [error, setError] = useState<string | null>(null);
 
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerWhatsappCountryCode, setCustomerWhatsappCountryCode] = useState(PHONE_COUNTRY_CODES[0].value);
-  const [customerWhatsappNumber, setCustomerWhatsappNumber] = useState('');
+  const [customerName, setCustomerNameState] = useState('');
+  const [customerEmail, setCustomerEmailState] = useState('');
+  const [customerWhatsappCountryCode, setCustomerWhatsappCountryCodeState] = useState(PHONE_COUNTRY_CODES[0].value);
+  const [rawWhatsappNumber, setRawWhatsappNumberState] = useState('');
 
-  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [couponCodeInput, setCouponCodeInputState] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [finalPrice, setFinalPrice] = useState<number | null>(null);
   const [originalPriceBeforeDiscount, setOriginalPriceBeforeDiscount] = useState<number | null>(null);
   const [discountApplied, setDiscountApplied] = useState<number>(0);
 
-  const [includeOrderBump, setIncludeOrderBump] = useState(false);
+  const [includeOrderBump, setIncludeOrderBumpState] = useState(false);
 
   const [pixData, setPixData] = useState<PushInPayPixResponseData | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
-  const pollingIntervalRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [pixCreationTime, setPixCreationTime] = useState<number | null>(null);
-  const [pixTransactionId, setPixTransactionId] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const pollingTimeoutRef = useRef<number | null>(null); // Changed NodeJS.Timeout to number
+  const pollingIntervalRef = useRef<number | null>(null); // Changed NodeJS.Timeout to number
 
-  const abandonedCartRecorded = useRef(false);
+
+  const abandonedCartIdRef = useRef<string | null>(null);
   const initialCouponCheckDone = useRef(false);
   const [ctaTextColor, setCtaTextColor] = useState('#111827');
 
+  const productForUnloadRef = useRef(product);
+  const customerNameForUnloadRef = useRef(customerName);
+  const customerEmailForUnloadRef = useRef(customerEmail);
+  const rawWhatsappNumberForUnloadRef = useRef(rawWhatsappNumber);
+  const customerWhatsappCountryCodeForUnloadRef = useRef(customerWhatsappCountryCode);
+  const finalPriceForUnloadRef = useRef(finalPrice);
+  const couponCodeInputForUnloadRef = useRef(couponCodeInput);
+  const includeOrderBumpForUnloadRef = useRef(includeOrderBump);
+  const appliedCouponForUnloadRef = useRef(appliedCoupon);
 
   const getTrackingParams = useCallback(() => {
     const params = new URLSearchParams(location.search);
@@ -112,14 +108,48 @@ export const CheckoutPage: React.FC = () => {
     });
     return Object.keys(tracking).length > 0 ? tracking : undefined;
   }, [location.search]);
+  const getTrackingParamsForUnloadRef = useRef(getTrackingParams);
 
+  useEffect(() => { 
+    const savedData = localStorage.getItem(LOCALSTORAGE_CHECKOUT_KEY);
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        if (parsedData.slug === slug) {
+          setCustomerNameState(parsedData.customerName || '');
+          setCustomerEmailState(parsedData.customerEmail || '');
+          setCustomerWhatsappCountryCodeState(parsedData.customerWhatsappCountryCode || PHONE_COUNTRY_CODES[0].value);
+          setRawWhatsappNumberState(parsedData.rawWhatsappNumber || '');
+          setCouponCodeInputState(parsedData.couponCodeInput || '');
+          setIncludeOrderBumpState(parsedData.includeOrderBump || false);
+        } else {
+            localStorage.removeItem(LOCALSTORAGE_CHECKOUT_KEY);
+        }
+      } catch (e) { console.error("Failed to parse checkout data from localStorage", e); localStorage.removeItem(LOCALSTORAGE_CHECKOUT_KEY); }
+    }
+  }, [slug]);
+  useEffect(() => { 
+    const dataToSave = { slug, customerName, customerEmail, customerWhatsappCountryCode, rawWhatsappNumber, couponCodeInput, includeOrderBump };
+    localStorage.setItem(LOCALSTORAGE_CHECKOUT_KEY, JSON.stringify(dataToSave));
+  }, [slug, customerName, customerEmail, customerWhatsappCountryCode, rawWhatsappNumber, couponCodeInput, includeOrderBump]);
+  useEffect(() => { productForUnloadRef.current = product; }, [product]);
+  useEffect(() => { finalPriceForUnloadRef.current = finalPrice; }, [finalPrice]);
+  useEffect(() => { getTrackingParamsForUnloadRef.current = getTrackingParams; }, [getTrackingParams]);
+  useEffect(() => { customerNameForUnloadRef.current = customerName; }, [customerName]);
+  useEffect(() => { customerEmailForUnloadRef.current = customerEmail; }, [customerEmail]);
+  useEffect(() => { rawWhatsappNumberForUnloadRef.current = rawWhatsappNumber; }, [rawWhatsappNumber]);
+  useEffect(() => { customerWhatsappCountryCodeForUnloadRef.current = customerWhatsappCountryCode; }, [customerWhatsappCountryCode]);
+  useEffect(() => { couponCodeInputForUnloadRef.current = couponCodeInput; }, [couponCodeInput]);
+  useEffect(() => { includeOrderBumpForUnloadRef.current = includeOrderBump; }, [includeOrderBump]);
+  useEffect(() => { appliedCouponForUnloadRef.current = appliedCoupon; }, [appliedCoupon]);
 
-  const applyCouponLogic = useCallback((couponToApply: Coupon | null, currentProduct: Product, bumpIncluded: boolean) => {
+  const applyCouponLogic = useCallback((couponToApply: Coupon | null, currentProduct: Product, bumpIncluded: boolean) => { 
     if (!currentProduct) return;
     let basePrice = currentProduct.priceInCents;
     let orderBumpPrice = 0;
     if (bumpIncluded && currentProduct.orderBump && currentProduct.orderBump.productId) {
-        orderBumpPrice = currentProduct.orderBump.customPriceInCents ?? 0; 
+        const bumpProductDetails = currentProduct.orderBump; 
+        orderBumpPrice = bumpProductDetails.customPriceInCents ?? 0; 
         basePrice += orderBumpPrice;
     }
     setOriginalPriceBeforeDiscount(basePrice);
@@ -138,12 +168,11 @@ export const CheckoutPage: React.FC = () => {
     setDiscountApplied(calculatedDiscount); setFinalPrice(basePrice - calculatedDiscount);
   }, []);
 
-
   useEffect(() => {
     if (slug) {
       setIsLoading(true);
       productService.getProductBySlug(slug, null)
-        .then((data: Product | undefined) => {
+        .then(async (data: Product | undefined) => {
           if (data) {
             setProduct(data);
             const primaryColor = data.checkoutCustomization?.primaryColor;
@@ -151,47 +180,46 @@ export const CheckoutPage: React.FC = () => {
                 document.documentElement.style.setProperty('--color-checkout-primary', primaryColor);
                 setCtaTextColor(getContrastingTextColor(primaryColor));
                 document.documentElement.style.setProperty('--color-checkout-cta-text', getContrastingTextColor(primaryColor));
-            } else { // Reset to defaults if no primary color is set on the product
-                document.documentElement.style.setProperty('--color-checkout-primary', '#FDE047'); // Default yellow
-                setCtaTextColor(getContrastingTextColor('#FDE047'));
-                document.documentElement.style.setProperty('--color-checkout-cta-text', getContrastingTextColor('#FDE047'));
+            } else { 
+                document.documentElement.style.setProperty('--color-checkout-primary', '#0D9488'); // Default teal
+                setCtaTextColor(getContrastingTextColor('#0D9488'));
+                document.documentElement.style.setProperty('--color-checkout-cta-text', getContrastingTextColor('#0D9488'));
             }
 
-
-            if (!initialCouponCheckDone.current && data.coupons && data.coupons.length > 0) {
-                const automaticCoupon = data.coupons.find((c: Coupon) => c.isAutomatic && c.isActive);
-                if (automaticCoupon) {
-                    applyCouponLogic(automaticCoupon, data, includeOrderBump);
-                    setCouponCodeInput(automaticCoupon.code);
-                } else { applyCouponLogic(null, data, includeOrderBump); }
+            try {
+              const [ownerSettings, platSettings] = await Promise.all([
+                settingsService.getAppSettingsByUserId(data.platformUserId, loggedInUserToken), 
+                settingsService.getPlatformSettings(loggedInUserToken) 
+              ]);
+              console.log("[CheckoutPage] Owner App Settings Loaded:", ownerSettings);
+              console.log("[CheckoutPage] Platform Settings Loaded:", platSettings);
+              setOwnerAppSettings(ownerSettings);
+              setPlatformSettings(platSettings);
+            } catch (settingsError: any) {
+              console.error("[CheckoutPage] Error fetching owner/platform settings:", settingsError);
+              setError("Falha ao carregar configurações necessárias para o pagamento.");
+            }
+            
+            if (!initialCouponCheckDone.current && data.coupons && data.coupons.length > 0) { 
+                const autoApplyCoupon = data.coupons.find(c => c.isAutomatic && c.isActive);
+                if (autoApplyCoupon) { applyCouponLogic(autoApplyCoupon, data, includeOrderBump); } 
+                else { applyCouponLogic(null, data, includeOrderBump); }
                 initialCouponCheckDone.current = true;
-            } else { applyCouponLogic(null, data, includeOrderBump); }
+            }
+            else if (!initialCouponCheckDone.current) { applyCouponLogic(null, data, includeOrderBump); initialCouponCheckDone.current = true; }
           } else { setError(`Produto com slug "${slug}" não encontrado.`); }
         })
         .catch(() => setError(`Falha ao carregar o produto com slug "${slug}".`))
         .finally(() => setIsLoading(false));
     } else { setError('Slug do produto não fornecido.'); setIsLoading(false); }
     return () => { 
-        document.documentElement.style.removeProperty('--color-checkout-primary'); 
-        document.documentElement.style.removeProperty('--color-checkout-cta-text');
-    };
-  }, [slug, applyCouponLogic, includeOrderBump]); 
-
-  useEffect(() => {
-    if (product) {
-        if (appliedCoupon) applyCouponLogic(appliedCoupon, product, includeOrderBump);
-        else if (couponCodeInput && product.coupons) {
-            const couponFromInput = product.coupons.find((c: Coupon) => c.code.toUpperCase() === couponCodeInput.toUpperCase() && c.isActive);
-            applyCouponLogic(couponFromInput || null, product, includeOrderBump);
-        } else {
-            const automaticCoupon = product.coupons?.find((c: Coupon) => c.isAutomatic && c.isActive);
-            applyCouponLogic(automaticCoupon || null, product, includeOrderBump);
-        }
-    }
-  }, [includeOrderBump, product, appliedCoupon, couponCodeInput, applyCouponLogic]);
-
-
-  const handleApplyCoupon = () => {
+      document.documentElement.style.removeProperty('--color-checkout-primary');
+      document.documentElement.style.removeProperty('--color-checkout-cta-text');
+     };
+  }, [slug, applyCouponLogic, includeOrderBump, loggedInUserToken]);
+  useEffect(() => { if (product) { applyCouponLogic(appliedCoupon, product, includeOrderBump); } }, [includeOrderBump, appliedCoupon, product, applyCouponLogic]);
+  
+  const handleApplyCoupon = () => { 
     if (!product || !product.coupons) { setCouponError('Nenhum cupom disponível para este produto.'); return; }
     if (!couponCodeInput.trim()) { applyCouponLogic(null, product, includeOrderBump); setCouponError(null); setAppliedCoupon(null); return; }
     const coupon = product.coupons.find((c: Coupon) => c.code.toUpperCase() === couponCodeInput.toUpperCase());
@@ -199,130 +227,255 @@ export const CheckoutPage: React.FC = () => {
     else if (coupon && !coupon.isActive) { setCouponError('Este cupom não está mais ativo.'); setAppliedCoupon(null); applyCouponLogic(null, product, includeOrderBump); }
     else { setCouponError('Cupom inválido.'); setAppliedCoupon(null); applyCouponLogic(null, product, includeOrderBump); }
   };
+  
+  const saveOrUpdateAbandonedCart = useCallback(async (isFinalAttempt = false) => {
+    const currentProduct = isFinalAttempt ? productForUnloadRef.current : product;
+    const currentCustomerEmail = isFinalAttempt ? customerEmailForUnloadRef.current : customerEmail;
 
-  const recordAbandonedCart = useCallback(async () => {
-    if (product && customerEmail && !pixData && !abandonedCartRecorded.current) {
-      abandonedCartRecorded.current = true;
-      try {
-        const payload: CreateAbandonedCartPayload = { productId: product.id, productName: product.name, potentialValueInCents: finalPrice ?? product.priceInCents, customerName: customerName, customerEmail: customerEmail, customerWhatsapp: `${customerWhatsappCountryCode}${customerWhatsappNumber.replace(/\D/g, '')}` };
-        await abandonedCartService.createAbandonedCartAttempt(payload);
-      } catch (cartError) { console.error("Failed to record abandoned cart:", cartError); abandonedCartRecorded.current = false; }
+    if (!currentProduct) { console.warn('[DEBUG saveOrUpdateAbandonedCart] Aborting: currentProduct is null.'); return; }
+    if (isFinalAttempt && pixData) { console.warn('[DEBUG saveOrUpdateAbandonedCart] Aborting: Final attempt but PIX data exists (payment initiated).'); return; }
+
+    const currentCustomerName = isFinalAttempt ? customerNameForUnloadRef.current : customerName;
+    const currentRawWhatsapp = isFinalAttempt ? rawWhatsappNumberForUnloadRef.current : rawWhatsappNumber;
+    const currentCountryCode = isFinalAttempt ? customerWhatsappCountryCodeForUnloadRef.current : customerWhatsappCountryCode;
+    const currentFinalPrice = isFinalAttempt ? finalPriceForUnloadRef.current : finalPrice;
+    const currentTrackingParamsGetter = isFinalAttempt ? getTrackingParamsForUnloadRef.current : getTrackingParams;
+    
+    const localDigits = currentRawWhatsapp.trim();
+    const fullWhatsapp = localDigits ? `${currentCountryCode}${localDigits}` : '';
+
+    const payload: CreateAbandonedCartPayload = {
+        productId: currentProduct.id, productName: currentProduct.name,
+        potentialValueInCents: currentFinalPrice ?? currentProduct.priceInCents,
+        customerName: currentCustomerName.trim() || currentCustomerEmail.split('@')[0] || "Cliente Anônimo",
+        customerEmail: currentCustomerEmail.trim(), customerWhatsapp: fullWhatsapp,
+        platformUserId: currentProduct.platformUserId, trackingParameters: currentTrackingParamsGetter()
+    };
+
+    console.log('[DEBUG saveOrUpdateAbandonedCart] Payload:', payload, 'Existing ID:', abandonedCartIdRef.current);
+
+    try {
+      if (abandonedCartIdRef.current) {
+        // Update existing cart - can proceed even if email is empty if other fields are being updated
+        await abandonedCartService.updateAbandonedCartAttempt(abandonedCartIdRef.current, payload);
+        console.log('[DEBUG saveOrUpdateAbandonedCart] Cart updated:', abandonedCartIdRef.current);
+      } else if (payload.customerEmail && payload.customerEmail.trim()) {
+        // Create new cart ONLY if email is present
+        const newCart = await abandonedCartService.createAbandonedCartAttempt(payload);
+        abandonedCartIdRef.current = newCart.id;
+        console.log('[DEBUG saveOrUpdateAbandonedCart] Cart created:', newCart.id);
+      } else {
+        // Do not attempt to create a new cart if email is missing
+        console.warn('[DEBUG saveOrUpdateAbandonedCart] Not creating new cart: Email is required. isFinalAttempt:', isFinalAttempt);
+      }
+    } catch (cartError) {
+      console.error("[DEBUG saveOrUpdateAbandonedCart] Failed to save/update abandoned cart:", cartError);
+      if (abandonedCartIdRef.current && (cartError as any).message?.includes("not found")) {
+        abandonedCartIdRef.current = null; // Reset if update failed due to not found
+      }
     }
-  }, [product, customerEmail, customerName, customerWhatsappCountryCode, customerWhatsappNumber, finalPrice, pixData]);
+  }, [product, customerEmail, customerName, rawWhatsappNumber, customerWhatsappCountryCode, finalPrice, getTrackingParams, pixData]);
+  
+  useEffect(() => { const executeBeforeUnloadActions = () => { saveOrUpdateAbandonedCart(true); }; window.addEventListener('beforeunload', executeBeforeUnloadActions); return () => { executeBeforeUnloadActions(); window.removeEventListener('beforeunload', executeBeforeUnloadActions); }; }, [saveOrUpdateAbandonedCart]); 
+  const handleFieldBlur = () => { if (customerEmail.trim() || customerName.trim() || rawWhatsappNumber.trim()) { if (product) { saveOrUpdateAbandonedCart(); } } };
+  const handleCustomerNameChange = (e: React.ChangeEvent<HTMLInputElement>) => setCustomerNameState(e.target.value);
+  const handleCustomerEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => setCustomerEmailState(e.target.value);
+  const handleWhatsappInputChange = (e: React.ChangeEvent<HTMLInputElement>) => { const digits = e.target.value.replace(/\D/g, ''); setRawWhatsappNumberState(digits); };
+  const handleCountryCodeChange = (e: React.ChangeEvent<HTMLSelectElement>) => { setCustomerWhatsappCountryCodeState(e.target.value); if (rawWhatsappNumber.trim()) { handleFieldBlur(); } };
+  const handleCouponCodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setCouponCodeInputState(e.target.value.toUpperCase());
+  const handleToggleOrderBump = () => { const newBumpState = !includeOrderBump; setIncludeOrderBumpState(newBumpState); setTimeout(() => saveOrUpdateAbandonedCart(), 0); };
 
+  const clearPolling = () => {
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+    pollingIntervalRef.current = null;
+    pollingTimeoutRef.current = null;
+  };
+
+  // PIX Status Polling Logic
   useEffect(() => {
-    const executeBeforeUnloadActions = (): void => { if (product && customerEmail && !pixData && !abandonedCartRecorded.current) recordAbandonedCart().catch(console.error); };
-    window.addEventListener('beforeunload', executeBeforeUnloadActions);
-    return () => { executeBeforeUnloadActions(); window.removeEventListener('beforeunload', executeBeforeUnloadActions); };
-  }, [recordAbandonedCart, product, customerEmail, pixData]);
+    if (pixData && paymentStatus === PaymentStatus.WAITING_PAYMENT && product && ownerAppSettings?.apiTokens.pushinPayEnabled && ownerAppSettings.apiTokens.pushinPay) {
+      setIsProcessingPayment(true); 
+      
+      clearPolling(); 
+
+      pollingIntervalRef.current = window.setInterval(async () => { // Use window.setInterval
+        try {
+          const statusResponse = await pushInPayService.checkPaymentStatus(pixData.id, ownerAppSettings.apiTokens.pushinPay!, ownerAppSettings.apiTokens.pushinPayEnabled!);
+          if (statusResponse.success && statusResponse.data?.status === PaymentStatus.PAID) {
+            setPaymentStatus(PaymentStatus.PAID);
+            clearPolling();
+            
+            if (!platformSettings) {
+                setError("Configurações da plataforma não carregadas. Não foi possível registrar a venda.");
+                setIsProcessingPayment(false);
+                return;
+            }
+
+            const saleProducts: SaleProductItem[] = [{
+                productId: product.id, name: product.name, quantity: 1,
+                priceInCents: product.priceInCents, 
+                originalPriceInCents: product.priceInCents,
+                deliveryUrl: product.deliveryUrl,
+                slug: product.slug
+            }];
+            if (includeOrderBump && product.orderBump) {
+                saleProducts.push({
+                    productId: product.orderBump.productId, name: product.orderBump.name, quantity: 1,
+                    priceInCents: product.orderBump.customPriceInCents ?? 0, 
+                    originalPriceInCents: product.orderBump.customPriceInCents ?? 0, 
+                    isOrderBump: true,
+                });
+            }
+            const saleData: Omit<Sale, 'id' | 'createdAt' | 'platformCommissionInCents' | 'commission'> = {
+                platformUserId: product.platformUserId,
+                pushInPayTransactionId: pixData.id,
+                products: saleProducts,
+                customer: { name: customerName, email: customerEmail, whatsapp: `${customerWhatsappCountryCode}${rawWhatsappNumber}` },
+                paymentMethod: PaymentMethod.PIX,
+                status: PaymentStatus.PAID,
+                totalAmountInCents: finalPrice!,
+                originalAmountBeforeDiscountInCents: originalPriceBeforeDiscount!,
+                discountAppliedInCents: discountApplied,
+                couponCodeUsed: appliedCoupon?.code,
+                paidAt: statusResponse.data.paid_at || new Date().toISOString(),
+                trackingParameters: getTrackingParams()
+            };
+
+            const createdSale = await salesService.createSale(saleData, platformSettings, loggedInUserToken); 
+            
+            if (ownerAppSettings.apiTokens.utmifyEnabled && ownerAppSettings.apiTokens.utmify) {
+                const utmifyPayload = {
+                    orderId: createdSale.id, platform: PLATFORM_NAME, paymentMethod: "pix" as "pix",
+                    status: PaymentStatus.PAID, createdAt: createdSale.createdAt,
+                    customer: { name: customerName, email: customerEmail, whatsapp: `${customerWhatsappCountryCode}${rawWhatsappNumber}` },
+                    products: createdSale.products.map(p => ({
+                        id: p.productId, name: p.name, quantity: p.quantity, priceInCents: p.priceInCents,
+                        planId: null, planName: null, isUpsell: p.isUpsell, slug: p.slug
+                    })),
+                    trackingParameters: createdSale.trackingParameters || {},
+                    commission: createdSale.commission, approvedDate: createdSale.paidAt,
+                    couponCodeUsed: createdSale.couponCodeUsed, discountAppliedInCents: createdSale.discountAppliedInCents,
+                    originalAmountBeforeDiscountInCents: createdSale.originalAmountBeforeDiscountInCents,
+                };
+                await utmifyService.sendOrderData(utmifyPayload, ownerAppSettings.apiTokens.utmify);
+            }
+            setIsProcessingPayment(false);
+            localStorage.removeItem(LOCALSTORAGE_CHECKOUT_KEY);
+            navigate(`/thank-you/${createdSale.id}?origProdId=${product.id}`);
+
+          } else if (statusResponse.success && statusResponse.data?.status && statusResponse.data.status !== PaymentStatus.WAITING_PAYMENT) {
+            setPaymentStatus(statusResponse.data.status);
+            setError(`Pagamento ${statusResponse.data.status}. Tente novamente.`);
+            clearPolling();
+            setIsProcessingPayment(false);
+            setPixData(null); 
+          }
+        } catch (pollError: any) {
+          console.error("Error polling payment status:", pollError);
+          setError(pollError.message || "Erro ao verificar status do pagamento. Tente novamente.");
+          clearPolling();
+          setIsProcessingPayment(false);
+          setPixData(null); 
+        }
+      }, POLLING_INTERVAL);
+
+      pollingTimeoutRef.current = window.setTimeout(() => { // Use window.setTimeout
+        clearPolling();
+        if (paymentStatus === PaymentStatus.WAITING_PAYMENT) { 
+            setError("Tempo limite para pagamento PIX esgotado. Por favor, tente gerar um novo PIX.");
+            setPaymentStatus(PaymentStatus.EXPIRED);
+            setIsProcessingPayment(false);
+            setPixData(null); 
+        }
+      }, POLLING_TIMEOUT_DURATION);
+    }
+    return () => clearPolling();
+  }, [pixData, paymentStatus, product, ownerAppSettings, platformSettings, finalPrice, originalPriceBeforeDiscount, discountApplied, appliedCoupon, customerName, customerEmail, customerWhatsappCountryCode, rawWhatsappNumber, getTrackingParams, navigate, loggedInUserToken, includeOrderBump]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product || finalPrice === null || originalPriceBeforeDiscount === null) { setError('Erro ao processar. Tente recarregar.'); return; }
-    if (!customerName.trim() || !customerEmail.trim() || !customerWhatsappNumber.trim()) { setError('Preencha Nome, Email e WhatsApp.'); return; }
+    if (!customerName.trim() || !customerEmail.trim() || !rawWhatsappNumber.trim()) { setError('Preencha Nome, Email e WhatsApp.'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) { setError('Email inválido.'); return; }
+    
+    console.log("[CheckoutPage] handleSubmit - Checking settings before PIX generation...");
+    console.log("[CheckoutPage] handleSubmit - Owner App Settings:", ownerAppSettings);
+    console.log("[CheckoutPage] handleSubmit - Platform Settings:", platformSettings);
 
-    const fullWhatsapp = `${customerWhatsappCountryCode}${customerWhatsappNumber.replace(/\D/g, '')}`;
-    setIsLoading(true); setError(null); setPixData(null); setPaymentStatus(null); if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    if (!ownerAppSettings || !platformSettings) { setError('Configurações de pagamento não carregadas. Tente recarregar.'); return;}
+    
+    const pushInPayToken = ownerAppSettings.apiTokens?.pushinPay;
+    const pushInPayIsEnabled = ownerAppSettings.apiTokens?.pushinPayEnabled;
 
-    const productsInCart: SaleProductItem[] = [{ productId: product.id, name: product.name, quantity: 1, priceInCents: product.priceInCents, originalPriceInCents: product.priceInCents, deliveryUrl: product.deliveryUrl }];
+    console.log("[CheckoutPage] handleSubmit - PushInPay Token (length):", pushInPayToken ? pushInPayToken.length : 'N/A');
+    console.log("[CheckoutPage] handleSubmit - PushInPay Enabled:", pushInPayIsEnabled);
+
+    if (!pushInPayIsEnabled || !pushInPayToken) {
+        setError('Pagamento via PIX (PushInPay) não está habilitado ou configurado para este vendedor.');
+        return;
+    }
+
+    setIsProcessingPayment(true); setError(null); setPixData(null); setPaymentStatus(null);
+    await saveOrUpdateAbandonedCart(true); 
+
+    const saleProducts: SaleProductItem[] = [{
+        productId: product.id, name: product.name, quantity: 1,
+        priceInCents: product.priceInCents, 
+        originalPriceInCents: product.priceInCents,
+        deliveryUrl: product.deliveryUrl,
+        slug: product.slug
+    }];
     if (includeOrderBump && product.orderBump && product.orderBump.productId) {
-        const bumpProductOriginalPrice = product.orderBump.customPriceInCents ?? 0; 
-        productsInCart.push({
-            productId: product.orderBump.productId,
-            name: product.orderBump.name,
-            quantity: 1,
-            priceInCents: product.orderBump.customPriceInCents ?? 0, 
-            originalPriceInCents: bumpProductOriginalPrice, 
+        const bumpPrice = product.orderBump.customPriceInCents ?? product.priceInCents; 
+        saleProducts.push({
+            productId: product.orderBump.productId, name: product.orderBump.name, quantity: 1,
+            priceInCents: bumpPrice,
+            originalPriceInCents: bumpPrice, 
             isOrderBump: true,
         });
     }
 
+    const pixPayload = {
+        value: finalPrice, originalValueBeforeDiscount: originalPriceBeforeDiscount,
+        webhook_url: MOCK_WEBHOOK_URL,
+        customerName: customerName, customerEmail: customerEmail, customerWhatsapp: `${customerWhatsappCountryCode}${rawWhatsappNumber}`,
+        products: saleProducts, trackingParameters: getTrackingParams(),
+        couponCodeUsed: appliedCoupon?.code, discountAppliedInCents: discountApplied
+    };
+    
     try {
-      const pixPayload: InternalGeneratePixPayload = {
-        productId: product.id, productSlug: product.slug, customerName, customerEmail, customerWhatsapp: fullWhatsapp, products: productsInCart,
-        trackingParameters: getTrackingParams(), couponCodeUsed: appliedCoupon?.code,
-        discountAppliedInCents: discountApplied > 0 ? discountApplied : undefined,
-        originalValueBeforeDiscount: originalPriceBeforeDiscount, value: finalPrice,
-      };
-
-      const pixResponse = await apiClient.request<PushInPayPixResponse, InternalGeneratePixPayload>({
-        method: 'POST', endpoint: '/internal/pix/generate', body: pixPayload, token: null
-      });
-
-      if (pixResponse.success && pixResponse.data) {
-        setPixData(pixResponse.data);
-        setPaymentStatus(pixResponse.data.status);
-        setPixCreationTime(Date.now()); setIsPolling(true); setError(null);
-        setPixTransactionId(pixResponse.data.id);
-        if (!abandonedCartRecorded.current) recordAbandonedCart().catch(console.error);
-      } else {
-        setError(pixResponse.message || 'Falha ao gerar cobrança PIX. Tente novamente.');
-      }
-    } catch (err: any) {
-      setError(err.error?.message || err.message || 'Ocorreu um erro desconhecido ao gerar o PIX.');
-    } finally {
-      setIsLoading(false);
-    }
+        const pixResponse = await pushInPayService.generatePixCharge(pixPayload, pushInPayToken, pushInPayIsEnabled);
+        if (pixResponse.success && pixResponse.data) {
+            setPixData(pixResponse.data);
+            setPaymentStatus(pixResponse.data.status);
+        } else {
+            throw new Error(pixResponse.message || "Falha ao gerar PIX.");
+        }
+    } catch (paymentError: any) {
+        console.error("Error generating PIX:", paymentError);
+        setError(paymentError.message || "Ocorreu um erro ao gerar o PIX. Tente novamente.");
+        setPixData(null);
+        setPaymentStatus(null);
+    } 
   };
-
-  useEffect(() => {
-    if (isPolling && pixTransactionId && paymentStatus !== PaymentStatus.PAID && pixCreationTime) {
-        const checkStatus = async () => {
-            if (Date.now() - pixCreationTime > PIX_EXPIRATION_MINUTES * 60 * 1000) {
-                setError(`Pagamento PIX expirou. ID: ${pixTransactionId}. Por favor, gere um novo PIX.`);
-                setIsPolling(false); if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-                return;
-            }
-            try {
-                const statusResponse = await apiClient.request<PushInPayPixResponse>({
-                    method: 'GET', endpoint: `/internal/pix/status/${pixTransactionId}`, token: null
-                });
-
-                if (statusResponse.success && statusResponse.data) {
-                    setPaymentStatus(statusResponse.data.status);
-                    if (statusResponse.data.status === PaymentStatus.PAID) {
-                        setIsPolling(false); if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-                        await apiClient.request<{ success: boolean, saleId?: string }>({ 
-                            method: 'POST', 
-                            endpoint: '/internal/pix/confirm', 
-                            body: { pixTransactionId: pixTransactionId, paidAt: new Date().toISOString() }, 
-                            token: null 
-                        });
-                        navigate(`/thank-you/${pixTransactionId}?origProdId=${product?.id}`);
-                    } else if (statusResponse.data.status === PaymentStatus.EXPIRED || statusResponse.data.status === PaymentStatus.CANCELLED || statusResponse.data.status === PaymentStatus.FAILED) {
-                        setError(`Pagamento PIX ${statusResponse.data.status}. ID: ${pixTransactionId}.`);
-                        setIsPolling(false); if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-                    } else { pollingIntervalRef.current = setTimeout(checkStatus, POLLING_INTERVAL); }
-                } else {
-                    console.warn("Polling: Failed to get valid status or data", statusResponse.message);
-                    pollingIntervalRef.current = setTimeout(checkStatus, POLLING_INTERVAL);
-                }
-            } catch (err: any) {
-                console.error("Polling Error:", err);
-                pollingIntervalRef.current = setTimeout(checkStatus, POLLING_INTERVAL);
-            }
-        };
-        pollingIntervalRef.current = setTimeout(checkStatus, POLLING_INTERVAL);
-    }
-    return () => { if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current); };
-  }, [isPolling, pixTransactionId, paymentStatus, pixCreationTime, navigate, product?.id]);
 
   const copyPixCode = () => { if (pixData?.qr_code) navigator.clipboard.writeText(pixData.qr_code).then(() => { setCopySuccess(true); setTimeout(() => setCopySuccess(false), 2000); }); };
   const [countdown, setCountdown] = useState<string | null>(null);
-  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-
-   useEffect(() => {
+  const countdownIntervalRef = useRef<number | undefined>(undefined); // Use number for browser timer ID
+  useEffect(() => { 
     if (product?.checkoutCustomization?.countdownTimer?.enabled && product.checkoutCustomization.countdownTimer.durationMinutes && !pixData) {
       const timerKey = `countdownEndTime_${product.id}_${slug}`;
-      let endTime = localStorage.getItem(timerKey);
-      if (!endTime || parseInt(endTime) < Date.now() ) { 
-        endTime = (Date.now() + product.checkoutCustomization.countdownTimer.durationMinutes * 60 * 1000).toString();
-        localStorage.setItem(timerKey, endTime);
+      let endTimeString = localStorage.getItem(timerKey);
+      let endTime = endTimeString ? parseInt(endTimeString, 10) : null;
+
+      if (!endTime || endTime < Date.now() ) {
+        endTime = Date.now() + product.checkoutCustomization.countdownTimer.durationMinutes * 60 * 1000;
+        localStorage.setItem(timerKey, endTime.toString());
       }
       const updateCountdown = () => {
-        const timeLeft = parseInt(endTime!) - Date.now();
+        const timeLeft = endTime! - Date.now();
         if (timeLeft <= 0) {
           setCountdown(product?.checkoutCustomization?.countdownTimer?.messageAfter || "00:00");
           clearInterval(countdownIntervalRef.current);
@@ -333,7 +486,7 @@ export const CheckoutPage: React.FC = () => {
         setCountdown(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
       };
       updateCountdown();
-      countdownIntervalRef.current = setInterval(updateCountdown, 1000);
+      countdownIntervalRef.current = window.setInterval(updateCountdown, 1000); // Use window.setInterval
     } else if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
       setCountdown(null);
@@ -341,44 +494,61 @@ export const CheckoutPage: React.FC = () => {
     return () => { if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); };
   }, [product, pixData, slug]);
 
-
   if (isLoading && !product) return <div className="flex justify-center items-center h-screen bg-neutral-100"><LoadingSpinner size="lg" /><p className="ml-3 text-neutral-600">Carregando checkout...</p></div>;
   if (error && !pixData) return <div className="flex flex-col justify-center items-center h-screen bg-neutral-100 p-6 text-center"><Card className="max-w-md shadow-xl !bg-white"><div className="text-red-600 text-lg">{error}</div><Button onClick={() => window.location.reload()} className="mt-4 !bg-[var(--color-checkout-primary)] !text-[var(--color-checkout-cta-text)] hover:opacity-90">Recarregar Página</Button></Card></div>;
   if (!product || finalPrice === null) return <div className="flex flex-col justify-center items-center h-screen bg-neutral-100 p-6 text-center"><Card className="max-w-md shadow-xl !bg-white"><p className="text-neutral-600 text-lg">Produto não disponível ou erro no cálculo de preço.</p>{slug && <p className="text-sm text-neutral-500 mt-2">Tentando carregar slug: {slug}</p>}<Button onClick={() => window.location.reload()} className="mt-4 !bg-[var(--color-checkout-primary)] !text-[var(--color-checkout-cta-text)] hover:opacity-90">Recarregar Página</Button></Card></div>;
 
-
   const { checkoutCustomization, name: productNameFromProduct, description: productDescriptionFromProduct, orderBump: productOrderBump, imageUrl: productMainImageUrl } = product;
-  const primaryColorStyle = checkoutCustomization?.primaryColor || '#0D9488'; 
-  
+  const primaryColorStyle = checkoutCustomization?.primaryColor || '#0D9488';
   const countdownBgColor = checkoutCustomization?.countdownTimer?.backgroundColor || '#EF4444';
   const countdownTextColor = checkoutCustomization?.countdownTimer?.textColor || '#FFFFFF';
-
-
-  const getGuaranteeBadgeWidthClass = () => {
+  const getGuaranteeBadgeWidthClass = () => { 
     const count = checkoutCustomization?.guaranteeBadges?.length || 0;
     if (count === 1) return 'w-full'; if (count === 2) return 'w-1/2'; if (count === 3) return 'w-1/3'; if (count >= 4) return 'w-1/4'; return 'w-full';
   };
-  
-  // These classes are now applied through .checkout-light-theme in global.css
-  // const inputLightStyle = "bg-white border-neutral-300 text-neutral-800 placeholder-neutral-500 focus:border-[var(--color-checkout-primary)] focus:ring-1 focus:ring-[var(--color-checkout-primary)]";
-  // const labelLightStyle = "text-neutral-700";
+  const displayWhatsappNumber = formatPhoneNumberVisual(rawWhatsappNumber);
 
-  return (
+  if (pixData && paymentStatus === PaymentStatus.WAITING_PAYMENT) {
+    return (  
+      <div className="checkout-light-theme min-h-screen flex flex-col items-center justify-center py-8 px-4" style={{ fontFamily: "'Inter', sans-serif" }}>
+         <main className="w-full max-w-md bg-white shadow-2xl rounded-xl overflow-hidden border border-neutral-300/50">
+            <div className="p-6 sm:p-8 text-center">
+                <h1 className="text-2xl font-bold text-neutral-800 mb-3">Quase lá! Pague com PIX</h1>
+                <p className="text-neutral-600 mb-5">Use o QR Code abaixo ou copie o código para pagar.</p>
+                <img src={pixData.qr_code_base64} alt="PIX QR Code" className="mx-auto my-4 border rounded-lg shadow-sm max-w-xs w-full"/>
+                <div className="my-5">
+                    <Input readOnly value={pixData.qr_code} className="text-xs text-center inputLightStyle" label="Código PIX Copia e Cola:" labelClassName="labelLightStyle" />
+                    <Button onClick={copyPixCode} className="mt-2 w-full !bg-[var(--color-checkout-primary)] !text-[var(--color-checkout-cta-text)] hover:opacity-90" disabled={isProcessingPayment}>
+                        {copySuccess ? <><CheckCircleIcon className="h-5 w-5 mr-2"/> Copiado!</> : <><DocumentDuplicateIcon className="h-5 w-5 mr-2"/>Copiar Código</>}
+                    </Button>
+                </div>
+                <p className="text-lg font-semibold" style={{color: primaryColorStyle}}>Total: {formatCurrency(pixData.value)}</p>
+                {isProcessingPayment ? 
+                    <div className="mt-4"><LoadingSpinner size="md" /><p className="text-sm text-neutral-500 mt-2">Aguardando confirmação do pagamento...</p></div>
+                     :
+                     <p className="text-sm text-red-500 mt-4">{error || "Falha ao confirmar pagamento. Tente novamente ou contate o suporte."}</p>
+                }
+            </div>
+         </main>
+         <footer className="mt-8 text-center text-xs text-neutral-500">
+            <p>&copy; {new Date().getFullYear()} {productNameFromProduct}. Todos os direitos reservados.</p>
+            <p>Powered by <a href="https://1checkout.com.br" target="_blank" rel="noopener noreferrer" className="font-semibold" style={{color: primaryColorStyle}}>1Checkout</a></p>
+         </footer>
+      </div>
+    );
+  }
+
+  return (  
     <div className="checkout-light-theme min-h-screen flex flex-col items-center py-8 px-4" style={{ fontFamily: "'Inter', sans-serif" }}>
       {checkoutCustomization?.countdownTimer?.enabled && countdown && !pixData && (
-        <div className="fixed top-0 left-0 right-0 p-3 text-center text-lg font-semibold z-50 shadow-lg" style={{ backgroundColor: countdownBgColor, color: countdownTextColor }}>
-          {checkoutCustomization.countdownTimer.messageBefore} {countdown}
+        <div className="fixed top-0 left-0 right-0 p-2 text-center z-50 shadow-md" style={{ backgroundColor: countdownBgColor, color: countdownTextColor }}>
+          <span className="font-medium">{checkoutCustomization.countdownTimer.messageBefore}</span> {countdown}
         </div>
-      )}
-      {checkoutCustomization?.countdownTimer?.enabled && countdown === checkoutCustomization?.countdownTimer?.messageAfter && !pixData && ( 
-         <div className="fixed top-0 left-0 right-0 p-3 text-center text-lg font-semibold z-50 shadow-lg" style={{ backgroundColor: countdownBgColor, color: countdownTextColor }}>
-            {checkoutCustomization.countdownTimer.messageAfter}
-        </div>
-      )}
-
+       )}
       <main className={`w-full max-w-xl bg-white shadow-2xl rounded-xl overflow-hidden border border-neutral-300/50 ${checkoutCustomization?.countdownTimer?.enabled && !pixData ? 'mt-16' : ''}`}>
         <div className="p-6 sm:p-8">
-            {checkoutCustomization?.logoUrl && <img src={checkoutCustomization.logoUrl} alt={`${productNameFromProduct} Logo`} className="max-h-12 mx-auto mb-6"/>}
+            
+             {checkoutCustomization?.logoUrl && <img src={checkoutCustomization.logoUrl} alt={`${productNameFromProduct} Logo`} className="max-h-12 mx-auto mb-6"/>}
             {productMainImageUrl && !pixData && <img src={productMainImageUrl} alt={productNameFromProduct} className="w-full max-h-80 object-cover rounded-lg mb-5 shadow"/>}
             <h1 className="text-2xl sm:text-3xl font-bold text-neutral-800 text-center mb-1">{productNameFromProduct}</h1>
             {!pixData && <p className="text-neutral-600 text-center text-sm mb-5 leading-relaxed whitespace-pre-wrap">{productDescriptionFromProduct}</p>}
@@ -392,95 +562,64 @@ export const CheckoutPage: React.FC = () => {
             {checkoutCustomization?.salesCopy && !pixData && (
               <div className="prose prose-sm sm:prose max-w-none my-5" dangerouslySetInnerHTML={{ __html: checkoutCustomization.salesCopy }} />
             )}
-
-          {pixData && paymentStatus !== PaymentStatus.PAID ? (
-            <div className="text-center space-y-4 py-6">
-                <h2 className="text-xl sm:text-2xl font-semibold text-neutral-800">Pague com PIX para Finalizar</h2>
-                <p className="text-sm text-neutral-600 px-2 sm:px-4">Para pagar, abra o aplicativo do seu banco, acesse a área PIX e escolha 'Ler QR Code' ou 'PIX Copia e Cola'.</p>
-                {pixData.qr_code_base64 && <img src={pixData.qr_code_base64} alt="PIX QR Code" className="mx-auto border border-neutral-300 p-2 rounded-md shadow w-56 h-56 sm:w-64 sm:h-64"/>}
-
-                {pixData.qr_code && (
-                <div className="space-y-2">
-                    <Input label="PIX Copia e Cola" name="pixCode" value={pixData.qr_code} readOnly onClick={(e: React.MouseEvent<HTMLInputElement>) => (e.target as HTMLInputElement).select() } className="text-center text-xs sm:text-sm inputLightStyle" labelClassName="labelLightStyle" />
-                    <Button onClick={copyPixCode} variant="outline" className="w-full border-[var(--color-checkout-primary)] text-[var(--color-checkout-primary)] hover:bg-[var(--color-checkout-primary)] hover:!text-[var(--color-checkout-cta-text)]" leftIcon={<DocumentDuplicateIcon className="h-5 w-5"/>}>
-                    {copySuccess ? 'Copiado!' : 'Copiar Código PIX'}
-                    </Button>
-                </div>
-                )}
-                {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
-                {isPolling && <div className="flex items-center justify-center text-neutral-500 text-sm mt-4"><LoadingSpinner size="sm" color="text-neutral-500" className="mr-2" />Aguardando pagamento...</div>}
-                 <Button variant="ghost" onClick={() => { setPixData(null); setPaymentStatus(null); setError(null); if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current); setIsPolling(false);}} className="text-sm text-neutral-500 hover:text-neutral-700 mt-3">
-                    Gerar outro PIX ou alterar dados
-                </Button>
-            </div>
-          ) : (
             <form onSubmit={handleSubmit} className="space-y-5 pt-6 border-t border-neutral-200/80">
+                
                 <h2 className="text-xl font-semibold text-neutral-700 mb-1">Informações do Cliente</h2>
                 <p className="text-xs text-neutral-500 -mt-4 mb-3">Preencha seus dados para prosseguir com o pagamento.</p>
-
-                <Input label="Nome Completo" name="customerName" value={customerName} onChange={e => setCustomerName(e.target.value)} required className="inputLightStyle" labelClassName="labelLightStyle" />
-                <Input label="E-mail Principal" name="customerEmail" type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} required className="inputLightStyle" labelClassName="labelLightStyle"/>
+                <Input label="Nome Completo" name="customerName" value={customerName} onChange={handleCustomerNameChange} onBlur={handleFieldBlur} required className="inputLightStyle" labelClassName="labelLightStyle" disabled={isProcessingPayment}/>
+                <Input label="E-mail Principal" name="customerEmail" type="email" value={customerEmail} onChange={handleCustomerEmailChange} onBlur={handleFieldBlur} required className="inputLightStyle" labelClassName="labelLightStyle" disabled={isProcessingPayment}/>
                 <div>
                     <label htmlFor="customerWhatsapp" className="block text-sm font-medium mb-1 labelLightStyle">WhatsApp</label>
                     <div className="flex">
-                        <select value={customerWhatsappCountryCode} onChange={e => setCustomerWhatsappCountryCode(e.target.value)} className="rounded-l-md border-r-0 inputLightStyle w-1/3 sm:w-1/4">
+                        <select value={customerWhatsappCountryCode} onChange={handleCountryCodeChange} className="rounded-l-md border-r-0 inputLightStyle w-1/3 sm:w-1/4" disabled={isProcessingPayment}>
                             {PHONE_COUNTRY_CODES.map(cc => <option key={cc.value} value={cc.value}>{cc.emoji} {cc.value}</option>)}
                         </select>
-                        <Input name="customerWhatsapp" type="tel" value={customerWhatsappNumber} onChange={e => setCustomerWhatsappNumber(formatPhoneNumberVisual(e.target.value))} required placeholder="(DDD) 99999-9999" className="inputLightStyle rounded-l-none flex-1" />
+                        <Input name="customerWhatsapp" type="tel" value={displayWhatsappNumber} onChange={handleWhatsappInputChange} onBlur={handleFieldBlur} required placeholder="(DDD) 99999-9999" className="inputLightStyle rounded-l-none flex-1" disabled={isProcessingPayment}/>
                     </div>
                 </div>
-
-                {productOrderBump && productOrderBump.productId && (
-                    <Card className={`p-4 border-2 ${includeOrderBump ? 'border-[var(--color-checkout-primary)] bg-[var(--color-checkout-primary)]/5' : 'border-neutral-200 hover:border-neutral-300'} transition-all duration-200 cursor-pointer !bg-white hover:!bg-neutral-50`} onClick={() => setIncludeOrderBump(!includeOrderBump)}>
-                        <div className="flex items-start space-x-3">
-                            <input type="checkbox" checked={includeOrderBump} onChange={() => {}} className="mt-1 h-5 w-5 text-[var(--color-checkout-primary)] border-neutral-400 rounded focus:ring-[var(--color-checkout-primary)] focus:ring-offset-0" />
-                            <div>
-                                <h3 className="text-md font-semibold text-neutral-800">SIM, QUERO {productOrderBump.name.toUpperCase()} POR APENAS {formatCurrency(productOrderBump.customPriceInCents ?? 0)}!</h3>
-                                <p className="text-xs text-neutral-600">{productOrderBump.description}</p>
-                            </div>
+                {productOrderBump && productOrderBump.productId && ( 
+                    <Card className="mt-5 bg-yellow-50/70 border-yellow-300 p-4 shadow-none">
+                        <h3 className="text-base font-semibold text-yellow-800 mb-2">{productOrderBump.name}</h3>
+                        {productOrderBump.imageUrl && <img src={productOrderBump.imageUrl} alt={productOrderBump.name} className="w-20 h-20 object-cover rounded-md float-right ml-3 mb-1"/>}
+                        <p className="text-xs text-yellow-700 mb-2">{productOrderBump.description}</p>
+                        <div className="flex items-center justify-between">
+                            <span className="text-base font-bold text-yellow-900">
+                                + {formatCurrency(productOrderBump.customPriceInCents ?? product.priceInCents)}
+                            </span>
+                            <label htmlFor="orderBump" className="flex items-center text-sm font-medium text-yellow-800 cursor-pointer">
+                                <input type="checkbox" id="orderBump" checked={includeOrderBump} onChange={handleToggleOrderBump} className="h-4 w-4 text-yellow-600 border-yellow-400 rounded focus:ring-yellow-500 mr-2" disabled={isProcessingPayment}/>
+                                Sim, quero adicionar!
+                            </label>
                         </div>
                     </Card>
                 )}
-
-                <div className="pt-4 border-t border-neutral-200/60">
-                    <label htmlFor="couponCode" className="block text-sm font-medium labelLightStyle">Cupom de Desconto</label>
-                    <div className="mt-1 flex rounded-md shadow-sm">
-                        <div className="relative flex items-stretch flex-grow focus-within:z-10">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><TagIcon className="h-5 w-5 text-neutral-400" aria-hidden="true"/></div>
-                            <Input type="text" name="couponCode" id="couponCode" value={couponCodeInput} onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())} placeholder="INSIRA SEU CUPOM" className="inputLightStyle rounded-r-none pl-10 uppercase" />
-                        </div>
-                        <Button type="button" onClick={handleApplyCoupon} className="relative -ml-px inline-flex items-center space-x-2 px-4 py-2 border border-[var(--color-checkout-primary)] text-sm font-medium rounded-r-md text-neutral-700 bg-white hover:bg-[var(--color-checkout-primary)]/10 focus:outline-none focus:ring-1 focus:ring-[var(--color-checkout-primary)] focus:border-[var(--color-checkout-primary)]">
-                            Aplicar
-                        </Button>
+                <div className="pt-4 border-t border-neutral-200/60"> 
+                    <div className="flex items-end gap-2">
+                        <Input label="Cupom de Desconto (Opcional)" name="coupon" value={couponCodeInput} onChange={handleCouponCodeInputChange} className="inputLightStyle" labelClassName="labelLightStyle" icon={<TagIcon className="h-5 w-5"/>} disabled={isProcessingPayment}/>
+                        <Button type="button" variant="outline" onClick={handleApplyCoupon} className="mb-px" disabled={isProcessingPayment || !couponCodeInput.trim()}>Aplicar</Button>
                     </div>
-                    {couponError && <p className="mt-1 text-xs text-red-500">{couponError}</p>}
-                    {appliedCoupon && <p className="mt-1 text-xs text-green-600">Cupom "{appliedCoupon.code}" aplicado! ({appliedCoupon.discountType === 'percentage' ? `${appliedCoupon.discountValue}%` : formatCurrency(appliedCoupon.discountValue)} de desconto)</p>}
+                    {couponError && <p className="text-xs text-red-500 mt-1">{couponError}</p>}
+                    {appliedCoupon && <p className="text-xs text-green-600 mt-1">Cupom "{appliedCoupon.code}" aplicado! ({formatCurrency(discountApplied)} de desconto)</p>}
                 </div>
-
-                <div className="text-right space-y-1 pt-2">
-                    {discountApplied > 0 && <p className="text-sm text-neutral-500">Subtotal: <span className="line-through">{formatCurrency(originalPriceBeforeDiscount!)}</span></p>}
-                    {discountApplied > 0 && <p className="text-sm text-green-600">Desconto Cupom: -{formatCurrency(discountApplied)}</p>}
-                    <p className="text-2xl font-bold" style={{color: primaryColorStyle}}>TOTAL: {formatCurrency(finalPrice)}</p>
+                <div className="text-right space-y-1 pt-2"> 
+                    <p className="text-sm text-neutral-600">Subtotal: {formatCurrency(originalPriceBeforeDiscount ?? 0)}</p>
+                    {discountApplied > 0 && <p className="text-sm text-red-500">Desconto: -{formatCurrency(discountApplied)}</p>}
+                    <p className="text-xl font-bold" style={{color: primaryColorStyle}}>Total: {formatCurrency(finalPrice ?? 0)}</p>
                 </div>
-
-                <Button type="submit" isLoading={isLoading} className="w-full text-lg py-3.5 transition-opacity hover:opacity-90" style={{ backgroundColor: primaryColorStyle, color: ctaTextColor }}>
-                    Pagar {formatCurrency(finalPrice)} com PIX
+                <Button type="submit" isLoading={isProcessingPayment} disabled={isProcessingPayment} className="w-full text-lg py-3.5 transition-opacity hover:opacity-90" style={{ backgroundColor: primaryColorStyle, color: ctaTextColor }}>
+                    Pagar {formatCurrency(finalPrice!)} com PIX
                 </Button>
                 <p className="text-xs text-neutral-500 text-center flex items-center justify-center"><LockClosedIconSolid className="h-3 w-3 mr-1"/> Ambiente de pagamento seguro.</p>
             </form>
-          )}
-
-          {checkoutCustomization?.guaranteeBadges && checkoutCustomization.guaranteeBadges.length > 0 && !pixData && (
-            <div className="mt-8 pt-6 border-t border-neutral-200/80">
-              <div className="flex flex-wrap justify-around items-center gap-2">
-                {(checkoutCustomization.guaranteeBadges).map(badge => (
-                  <div key={badge.id} className={`p-1 ${getGuaranteeBadgeWidthClass()}`}>
-                    <img src={badge.imageUrl} alt={badge.altText} className="max-h-24 w-auto object-contain mx-auto"/>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            {checkoutCustomization?.guaranteeBadges && checkoutCustomization.guaranteeBadges.length > 0 && !pixData && (
+                <div className="mt-8 pt-6 border-t border-neutral-200/80">
+                    <div className="flex flex-wrap justify-center items-center gap-4">
+                        {checkoutCustomization.guaranteeBadges.map(badge => (
+                            <img key={badge.id} src={badge.imageUrl} alt={badge.altText} className={`${getGuaranteeBadgeWidthClass()} max-h-20 object-contain`}/>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
       </main>
       <footer className="mt-8 text-center text-xs text-neutral-500">

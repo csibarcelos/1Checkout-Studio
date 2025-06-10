@@ -121,7 +121,7 @@ export const CarrinhosAbandonadosPage: React.FC = () => {
       await abandonedCartService.deleteAbandonedCart(cartToDelete.id, accessToken); // Pass accessToken
       fetchCarts(); 
       closeDeleteModal();
-    } catch (err) {
+    } catch (err: any) {
       setError(`Falha ao deletar carrinho ${cartToDelete.id}.`);
       console.error(err);
     } finally {
@@ -178,7 +178,7 @@ export const CarrinhosAbandonadosPage: React.FC = () => {
         ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-neutral-200">
-            <thead className="bg-neutral-100"> {/* Updated header background */}
+            <thead className="bg-neutral-100">
               <tr>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Cliente</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">WhatsApp</th>
@@ -202,7 +202,7 @@ export const CarrinhosAbandonadosPage: React.FC = () => {
                 const whatsappUrl = customerWhatsapp ? generateWhatsAppLink(customerWhatsapp, whatsappMessage) : '';
 
                 return (
-                <tr key={cart.id} className="hover:bg-primary-light/40 transition-colors duration-150"> {/* Updated row hover */}
+                <tr key={cart.id} className="hover:bg-primary-light/40 transition-colors duration-150">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-neutral-900">{customerName}</div>
                     <div className="text-xs text-neutral-500">{cart.customerEmail || 'N/A'}</div>

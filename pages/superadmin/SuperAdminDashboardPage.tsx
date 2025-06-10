@@ -1,11 +1,10 @@
 
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { User, Sale, PaymentStatus, PlatformSettings } from '../../types';
-import { apiClient } from '../../services/apiClient';
+// import { apiClient } from '../../services/apiClient'; // Removido
 import { settingsService } from '../../services/settingsService';
 import { useAuth } from '../../contexts/AuthContext';
 import { UsersIcon, ShoppingCartIcon, CogIcon, CurrencyDollarIcon as CurrencyDollarHeroIcon, PresentationChartLineIcon as ChartBarIcon } from '@heroicons/react/24/outline';
@@ -131,20 +130,24 @@ export const SuperAdminDashboardPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [usersData, salesData, platSettings] = await Promise.all([
-        apiClient.request<User[]>({ method: 'GET', endpoint: '/superadmin/users', token: accessToken }),
-        apiClient.request<Sale[]>({ method: 'GET', endpoint: '/superadmin/sales', token: accessToken }),
-        settingsService.getPlatformSettings(accessToken)
-      ]);
+      // TODO: Implementar chamadas diretas ao Supabase para buscar todos os usuários e todas as vendas
+      // Por agora, retornará dados vazios ou erro.
+      // const usersData = await someSuperAdminUserService.getAllUsers(accessToken);
+      // const salesData = await someSuperAdminSalesService.getAllSales(accessToken);
+      const usersData: User[] = []; // Placeholder
+      const salesData: Sale[] = []; // Placeholder
+      
+      const platSettings = await settingsService.getPlatformSettings(accessToken);
       
       setAllUsers(usersData);
       setAllSales(salesData);
       setPlatformSettings(platSettings);
-      setTotalUsersCount(usersData.length); // Set total users count here
+      setTotalUsersCount(usersData.length); 
 
-      // Set recent activities (not affected by date filter)
       setRecentSales(salesData.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0,5));
       setRecentUsers(usersData.sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0,5));
+      
+      setError("SuperAdmin Dashboard: Integração de dados via Supabase pendente.");
 
 
     } catch (err: any) {
@@ -160,21 +163,19 @@ export const SuperAdminDashboardPage: React.FC = () => {
 
   // Recalculate metrics when filters or base data change
   useEffect(() => {
-    if (isLoading || !platformSettings) return; // Don't process if still loading or settings not fetched
+    if (isLoading || !platformSettings) return; 
 
     const currentFilteredUsers = filterDataByDateRange(allUsers, dateRangeFilter, 'createdAt');
     setFilteredUsers(currentFilteredUsers);
     setNewUsersInPeriod(currentFilteredUsers.length);
 
-    // For sales, filter by paidAt when considering revenue, commission, ticket
     const salesForPeriodMetrics = filterDataByDateRange(allSales, dateRangeFilter, 'paidAt')
                                  .filter(s => s.status === PaymentStatus.PAID);
     
-    // For total sales count in period, consider all sales (not just paid) created in period
     const allSalesCreatedInPeriod = filterDataByDateRange(allSales, dateRangeFilter, 'createdAt');
     setSalesInPeriodCount(allSalesCreatedInPeriod.length);
 
-    setFilteredSales(salesForPeriodMetrics); // Store paid sales in period for potential detailed views
+    setFilteredSales(salesForPeriodMetrics); 
 
     const currentSalesValue = salesForPeriodMetrics.reduce((sum, sale) => sum + sale.totalAmountInCents, 0);
     setSalesValueInPeriod(currentSalesValue);
@@ -196,16 +197,16 @@ export const SuperAdminDashboardPage: React.FC = () => {
   }, [allUsers, allSales, dateRangeFilter, platformSettings, isLoading]);
   
   const stats: DashboardStat[] = [
-    { title: "Total de Usuários", value: totalUsersCount, icon: UsersIcon }, // Total geral
+    { title: "Total de Usuários", value: totalUsersCount, icon: UsersIcon },
     { title: "Novos Usuários (Período)", value: newUsersInPeriod, icon: UsersIcon },
-    { title: "Vendas (Período)", value: salesInPeriodCount, icon: ShoppingCartIcon }, // All sales in period
-    { title: "Valor Vendido (Período)", value: formatCurrency(salesValueInPeriod), icon: CurrencyDollarHeroIcon }, // Paid sales
+    { title: "Vendas (Período)", value: salesInPeriodCount, icon: ShoppingCartIcon },
+    { title: "Valor Vendido (Período)", value: formatCurrency(salesValueInPeriod), icon: CurrencyDollarHeroIcon },
     { title: "Comissão Plataforma (Período)", value: formatCurrency(platformCommissionsInPeriod), icon: ChartBarIcon },
     { title: "Ticket Médio (Período)", value: formatCurrency(averageTicketInPeriod), icon: CurrencyDollarHeroIcon },
   ];
 
 
-  if (isLoading && totalUsersCount === 0 && allSales.length === 0) { // Corrected typo here
+  if (isLoading && totalUsersCount === 0 && allSales.length === 0) {
     return <div className="flex justify-center items-center h-64"><LoadingSpinner size="lg" /></div>;
   }
 

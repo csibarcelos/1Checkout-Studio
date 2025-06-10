@@ -1,6 +1,6 @@
 
 import { Customer, FunnelStage } from '../types'; 
-import { getSupabaseClient, getSupabaseUserId } from '../supabaseClient';
+import { supabase, getSupabaseUserId } from '../supabaseClient'; // Updated import
 import { Database } from '../types/supabase';
 
 type CustomerRow = Database['public']['Tables']['customers']['Row'];
@@ -19,17 +19,12 @@ const fromSupabaseCustomerRow = (row: CustomerRow): Customer => {
     totalOrders: row.total_orders,
     totalSpentInCents: row.total_spent_in_cents,
     saleIds: row.sale_ids || [],
-    // createdAt e updatedAt foram adicionados a types/supabase.ts
-    // Se você quiser usá-los no objeto Customer, adicione-os ao tipo Customer em types.ts
-    // e descomente/adicione as linhas abaixo:
-    // createdAt: row.created_at,
-    // updatedAt: row.updated_at,
   };
 };
 
 export const customerService = {
   getCustomers: async (_token: string | null): Promise<Customer[]> => { 
-    const supabase = getSupabaseClient();
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const userId = await getSupabaseUserId();
     if (!userId) {
         console.warn("customerService.getCustomers: User ID não encontrado. Retornando lista vazia.");
@@ -37,7 +32,7 @@ export const customerService = {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase // Use imported supabase
         .from('customers')
         .select('*')
         .eq('platform_user_id', userId);
@@ -69,14 +64,14 @@ export const customerService = {
   },
 
   getCustomerById: async (id: string, _token: string | null): Promise<Customer | undefined> => { 
-    const supabase = getSupabaseClient();
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const userId = await getSupabaseUserId(); 
     if (!userId) {
         console.warn("customerService.getCustomerById: User ID não encontrado.");
         return undefined;
     }
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase // Use imported supabase
         .from('customers')
         .select('*')
         .eq('id', id)

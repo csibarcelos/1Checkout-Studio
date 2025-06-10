@@ -1,6 +1,6 @@
 
 import { Product, Coupon, OrderBumpOffer, UpsellOffer, ProductCheckoutCustomization } from '../types';
-import { getSupabaseClient, getSupabaseUserId } from '../supabaseClient'; // Importar a função
+import { supabase, getSupabaseUserId } from '../supabaseClient'; // Importar a função e a instância
 import { Database, Json } from '../types/supabase';
 
 type ProductRow = Database['public']['Tables']['products']['Row'];
@@ -16,6 +16,21 @@ const generateSlugFromName = (name: string): string => {
     .substring(0, 50) + `-${Math.random().toString(36).substring(2, 7)}`; 
 };
 
+const parseJsonField = <T>(field: Json | null | undefined, defaultValue: T): T => {
+  if (field === null || field === undefined) {
+    return defaultValue;
+  }
+  if (typeof field === 'string') {
+    try {
+      return JSON.parse(field) as T;
+    } catch (e) {
+      console.warn('Failed to parse JSON string field:', field, e);
+      return defaultValue;
+    }
+  }
+  return field as T; 
+};
+
 const fromSupabaseRow = (row: ProductRow): Product => {
   return {
     id: row.id,
@@ -25,23 +40,23 @@ const fromSupabaseRow = (row: ProductRow): Product => {
     description: row.description,
     priceInCents: row.price_in_cents,
     imageUrl: row.image_url || undefined,
-    checkoutCustomization: (row.checkout_customization as unknown as ProductCheckoutCustomization) || {},
+    checkoutCustomization: parseJsonField<ProductCheckoutCustomization>(row.checkout_customization, {}),
     deliveryUrl: row.delivery_url || undefined,
     totalSales: row.total_sales || 0,
     clicks: row.clicks || 0,
     checkoutViews: row.checkout_views || 0,
     conversionRate: row.conversion_rate || 0,
     abandonmentRate: row.abandonment_rate || 0,
-    orderBump: row.order_bump ? (row.order_bump as unknown as OrderBumpOffer) : undefined,
-    upsell: row.upsell ? (row.upsell as unknown as UpsellOffer) : undefined,
-    coupons: row.coupons ? (row.coupons as unknown as Coupon[]) : [],
+    orderBump: parseJsonField<OrderBumpOffer | undefined>(row.order_bump, undefined),
+    upsell: parseJsonField<UpsellOffer | undefined>(row.upsell, undefined),
+    coupons: parseJsonField<Coupon[]>(row.coupons, []),
   };
 };
 
 
 export const productService = {
   getProducts: async (_token: string | null): Promise<Product[]> => {
-    const supabase = getSupabaseClient(); // Obter o cliente
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const userId = await getSupabaseUserId();
     if (!userId) {
         console.warn("productService.getProducts: User ID não encontrado. Retornando lista vazia.");
@@ -49,7 +64,7 @@ export const productService = {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase // Use imported supabase
         .from('products')
         .select('*')
         .eq('platform_user_id', userId); 
@@ -63,11 +78,9 @@ export const productService = {
   },
 
   getProductById: async (id: string, _token: string | null): Promise<Product | undefined> => {
-    const supabase = getSupabaseClient();
-    const userId = await getSupabaseUserId(); 
-
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase // Use imported supabase
         .from('products')
         .select('*')
         .eq('id', id)
@@ -77,8 +90,6 @@ export const productService = {
         if (error.code === 'PGRST116') return undefined; 
         throw error;
       }
-      // RLS should handle this, but an extra client-side check can be added if desired.
-      // if (data && userId && data.platform_user_id !== userId) { /* ... */ }
       return data ? fromSupabaseRow(data) : undefined;
     } catch (error: any) {
       console.error('Supabase getProductById error:', error);
@@ -87,9 +98,9 @@ export const productService = {
   },
 
   getProductBySlug: async (slug: string, _token: string | null): Promise<Product | undefined> => {
-    const supabase = getSupabaseClient();
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase // Use imported supabase
         .from('products')
         .select('*')
         .eq('slug', slug)
@@ -110,7 +121,7 @@ export const productService = {
     productData: Omit<Product, 'id' | 'platformUserId' | 'totalSales' | 'clicks' | 'checkoutViews' | 'conversionRate' | 'abandonmentRate' | 'slug'>,
     _token: string | null
   ): Promise<Product> => {
-    const supabase = getSupabaseClient();
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const userId = await getSupabaseUserId();
     if (!userId) throw new Error('Usuário não autenticado para criar produto.');
 
@@ -131,7 +142,7 @@ export const productService = {
     };
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase // Use imported supabase
         .from('products')
         .insert(newProductData)
         .select()
@@ -147,7 +158,7 @@ export const productService = {
   },
 
   updateProduct: async (id: string, updates: Partial<Omit<Product, 'id' | 'platformUserId' | 'slug'>>, _token: string | null): Promise<Product | undefined> => {
-    const supabase = getSupabaseClient();
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const userId = await getSupabaseUserId();
     if (!userId) throw new Error('Usuário não autenticado para atualizar produto.');
     
@@ -164,7 +175,7 @@ export const productService = {
     };
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase // Use imported supabase
         .from('products')
         .update(updatesForSupabase)
         .eq('id', id)
@@ -184,11 +195,11 @@ export const productService = {
   },
 
   deleteProduct: async (id: string, _token: string | null): Promise<boolean> => {
-    const supabase = getSupabaseClient();
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const userId = await getSupabaseUserId();
     if (!userId) throw new Error('Usuário não autenticado para deletar produto.');
     try {
-      const { error, count } = await supabase
+      const { error, count } = await supabase // Use imported supabase
         .from('products')
         .delete({ count: 'exact' }) 
         .eq('id', id);

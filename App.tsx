@@ -14,7 +14,7 @@ import { ThankYouPage } from './pages/ThankYouPage';
 import { VendasPage } from './pages/VendasPage';
 import { ClientesPage } from './pages/ClientesPage';
 import { CarrinhosAbandonadosPage } from './pages/CarrinhosAbandonadosPage';
-import { FinancasPage } from './pages/FinancasPage';
+// import { FinancasPage } from './pages/FinancasPage'; // Removido
 import { IntegracoesPage } from './pages/IntegracoesPage';
 import { ConfiguracoesPage } from './pages/ConfiguracoesPage';
 
@@ -85,7 +85,7 @@ function App() {
         <Route path="/vendas" element={<ProtectedRoute><MainLayout><VendasPage /></MainLayout></ProtectedRoute>} />
         <Route path="/clientes" element={<ProtectedRoute><MainLayout><ClientesPage /></MainLayout></ProtectedRoute>} />
         <Route path="/carrinhos-abandonados" element={<ProtectedRoute><MainLayout><CarrinhosAbandonadosPage /></MainLayout></ProtectedRoute>} />
-        <Route path="/financas" element={<ProtectedRoute><MainLayout><FinancasPage /></MainLayout></ProtectedRoute>} />
+        {/* <Route path="/financas" element={<ProtectedRoute><MainLayout><FinancasPage /></MainLayout></ProtectedRoute>} /> Removido */}
         <Route path="/integracoes" element={<ProtectedRoute><MainLayout><IntegracoesPage /></MainLayout></ProtectedRoute>} />
         <Route path="/configuracoes" element={<ProtectedRoute><MainLayout><ConfiguracoesPage /></MainLayout></ProtectedRoute>} />
         

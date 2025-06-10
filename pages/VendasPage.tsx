@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -7,9 +5,9 @@ import { Input } from '../components/ui/Input';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { Modal } from '../components/ui/Modal';
 import { Sale, PaymentStatus, PaymentMethod, SaleProductItem } from '../types'; 
-import { salesService } from '../services/salesService'; // Import new service
+import { salesService } from '../services/salesService'; 
 import { ShoppingCartIcon, WhatsAppIcon, generateWhatsAppLink } from '../constants';
-import { useAuth } from '../contexts/AuthContext'; // Import useAuth
+import { useAuth } from '../contexts/AuthContext'; 
 
 const getStatusClass = (status: PaymentStatus) => {
   switch (status) {
@@ -57,7 +55,7 @@ const InfoItem: React.FC<{ label: string; value: React.ReactNode; className?: st
 
 
 export const VendasPage: React.FC = () => {
-  const [allSales, setAllSales] = useState<Sale[]>([]); // Store all fetched sales
+  const [allSales, setAllSales] = useState<Sale[]>([]); 
   const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,34 +66,32 @@ export const VendasPage: React.FC = () => {
   
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
-  const { accessToken } = useAuth(); // Get accessToken
+  const { accessToken } = useAuth(); 
 
   const fetchSales = useCallback(async () => {
     if (!accessToken) {
         setIsLoading(false);
-        // setError("Autenticação necessária."); // Or handle silently
         return;
     }
     setIsLoading(true);
     setError(null);
     try {
-      const data = await salesService.getSales(accessToken); // Pass accessToken
+      const data = await salesService.getSales(accessToken); 
       setAllSales(data);
-      setFilteredSales(data); // Initialize filteredSales with all sales
+      setFilteredSales(data); 
     } catch (err: any) {
       setError(err.message || 'Falha ao carregar vendas.');
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken]); // Add accessToken to dependency array
+  }, [accessToken]); 
 
   useEffect(() => {
     fetchSales();
   }, [fetchSales]);
 
   useEffect(() => {
-    // Apply filters whenever allSales or filter criteria change
     let currentSales = [...allSales];
     if (searchTerm) {
       currentSales = currentSales.filter(sale =>
@@ -103,7 +99,7 @@ export const VendasPage: React.FC = () => {
         (sale.pushInPayTransactionId && sale.pushInPayTransactionId.toLowerCase().includes(searchTerm.toLowerCase())) ||
         sale.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         sale.customer?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (sale.products || []).some(p => p.name?.toLowerCase().includes(searchTerm.toLowerCase()))
+        (Array.isArray(sale.products) && sale.products.some(p => p.name?.toLowerCase().includes(searchTerm.toLowerCase())))
       );
     }
     if (filterStatus) {
@@ -138,7 +134,7 @@ export const VendasPage: React.FC = () => {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-neutral-800">Minhas Vendas</h1>
       
-      <Card className="p-0 sm:p-0"> {/* Adjusted padding for table */}
+      <Card className="p-0 sm:p-0"> 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 border-b border-neutral-200">
           <Input 
             placeholder="Buscar por ID, cliente, produto..."
@@ -188,7 +184,7 @@ export const VendasPage: React.FC = () => {
         ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-neutral-200">
-            <thead className="bg-neutral-100"> {/* Updated header background */}
+            <thead className="bg-neutral-100"> 
               <tr>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">ID Venda</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Cliente</th>
@@ -205,7 +201,7 @@ export const VendasPage: React.FC = () => {
               {filteredSales.map((sale) => {
                 const customerName = sale.customer?.name || 'Cliente';
                 const customerWhatsapp = sale.customer?.whatsapp || '';
-                const productNames = (sale.products || []).map(p => p.name || 'Produto Desconhecido').join(', ');
+                const productNames = Array.isArray(sale.products) ? sale.products.map(p => p.name || 'Produto Desconhecido').join(', ') : 'Produtos Indisponíveis';
                 
                 const whatsappMessage = customerWhatsapp 
                   ? `Olá ${customerName}, obrigado por sua compra de "${productNames}" na 1Checkout! Caso precise de ajuda ou tenha alguma dúvida sobre seu pedido, estamos à disposição.`
@@ -213,7 +209,7 @@ export const VendasPage: React.FC = () => {
                 const whatsappUrl = customerWhatsapp ? generateWhatsAppLink(customerWhatsapp, whatsappMessage) : '';
 
                 return (
-                <tr key={sale.id} className="hover:bg-primary-light/40 transition-colors duration-150"> {/* Updated row hover */}
+                <tr key={sale.id} className="hover:bg-primary-light/40 transition-colors duration-150"> 
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary hover:underline cursor-pointer" onClick={() => handleOpenDetailsModal(sale)}>{sale.id.split('_').pop()}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-neutral-900">{customerName}</div>
@@ -295,14 +291,14 @@ export const VendasPage: React.FC = () => {
                 label="WhatsApp" 
                 value={selectedSale.customer?.whatsapp || 'N/A'} 
                 isWhatsApp={!!selectedSale.customer?.whatsapp}
-                whatsAppUrl={selectedSale.customer?.whatsapp ? generateWhatsAppLink(selectedSale.customer.whatsapp, `Olá ${selectedSale.customer.name || 'Cliente'}, obrigado por sua compra de "${(selectedSale.products || []).map(p=>p.name || 'Produto').join(', ')}" na 1Checkout! Caso precise de ajuda ou tenha alguma dúvida sobre seu pedido, estamos à disposição.`) : undefined}
+                whatsAppUrl={selectedSale.customer?.whatsapp ? generateWhatsAppLink(selectedSale.customer.whatsapp, `Olá ${selectedSale.customer.name || 'Cliente'}, obrigado por sua compra de "${(Array.isArray(selectedSale.products) ? selectedSale.products.map(p=>p.name || 'Produto') : []).join(', ')}" na 1Checkout! Caso precise de ajuda ou tenha alguma dúvida sobre seu pedido, estamos à disposição.`) : undefined}
               />
             </section>
 
             <section>
               <h3 className="text-lg font-semibold text-neutral-800 border-b pb-2 mb-3">Produtos</h3>
               <ul className="space-y-3">
-                {(selectedSale.products || []).map((item, index) => (
+                {Array.isArray(selectedSale.products) && selectedSale.products.map((item, index) => (
                   <li key={index} className="p-3 bg-neutral-50 rounded-md shadow-sm">
                     <p className="font-semibold text-neutral-700">{item.name || 'Produto Desconhecido'}</p>
                     <div className="text-sm text-neutral-600 grid grid-cols-3 gap-x-2">

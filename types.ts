@@ -81,21 +81,30 @@ export interface ProductCheckoutCustomization {
   };
 }
 
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+
 export interface Product {
   id: string;
   platformUserId: string;
-  slug?: string; // Added for user-friendly URLs
+  slug?: string; 
   name: string;
   description: string;
   priceInCents: number;
-  imageUrl?: string; // URL for the main large product image
+  imageUrl?: string; 
   checkoutCustomization: ProductCheckoutCustomization;
   deliveryUrl?: string;
   totalSales?: number;
   clicks?: number;
   checkoutViews?: number;
   conversionRate?: number;
-  abandonmentRate?: number; // Completed this line
+  abandonmentRate?: number;
   orderBump?: OrderBumpOffer;
   upsell?: UpsellOffer;
   coupons?: Coupon[];
@@ -120,20 +129,21 @@ export interface SaleProductItem {
   productId: string;
   name: string;
   quantity: number;
-  priceInCents: number; // Price *after* any item-specific discount (e.g. order bump custom price), before order-level coupon
-  originalPriceInCents: number; // Price before any item-specific discount or bump custom price
-  isOrderBump?: boolean; // Flag if this item was an order bump
-  isUpsell?: boolean; // Flag if this item was an upsell
+  priceInCents: number; 
+  originalPriceInCents: number; 
+  isOrderBump?: boolean; 
+  isUpsell?: boolean; 
   deliveryUrl?: string;
+  slug?: string; // Added slug
 }
 
 export interface Sale {
   id: string;
   platformUserId: string;
-  pushInPayTransactionId: string; // For PIX, this is the primary transaction ID
-  upsellPushInPayTransactionId?: string; // If an upsell was accepted and paid
+  pushInPayTransactionId: string; 
+  upsellPushInPayTransactionId?: string; 
   orderIdUrmify?: string;
-  products: SaleProductItem[];
+  products: SaleProductItem[]; 
   customer: {
     name: string;
     email: string;
@@ -142,31 +152,30 @@ export interface Sale {
   };
   paymentMethod: PaymentMethod;
   status: PaymentStatus;
-  upsellStatus?: PaymentStatus; // Status of the upsell payment
-  totalAmountInCents: number; // Final amount paid for the main order (after coupon, includes bump)
-  upsellAmountInCents?: number; // Amount paid for the upsell, if any
-  originalAmountBeforeDiscountInCents: number; // Amount before main coupon (main product + bump)
+  upsellStatus?: PaymentStatus; 
+  totalAmountInCents: number; 
+  upsellAmountInCents?: number; 
+  originalAmountBeforeDiscountInCents: number; 
   discountAppliedInCents?: number;
   couponCodeUsed?: string;
   createdAt: string;
   paidAt?: string;
-  trackingParameters?: Record<string, string>;
-  commission?: {
-    totalPriceInCents: number; // Base for commission (usually after discount)
+  trackingParameters?: Record<string, string>; 
+  commission?: { 
+    totalPriceInCents: number; 
     gatewayFeeInCents: number;
     userCommissionInCents: number;
     currency: string;
   };
-  platformCommissionInCents?: number; // Added for super admin
+  platformCommissionInCents?: number; 
 }
 
-// For storing PIX transaction attempts and details
 export interface SaleTransaction {
     id: string;
     platformUserId: string;
-    valueInCents: number; // Actual value of this specific transaction (after discount)
-    originalValueBeforeDiscountInCents: number; // Value before any discounts for this transaction
-    couponCodeUsed?: string; // If a coupon was applied to this specific transaction
+    valueInCents: number; 
+    originalValueBeforeDiscountInCents: number; 
+    couponCodeUsed?: string; 
     discountAppliedToTransactionInCents?: number;
     qrCode?: string;
     qrCodeBase64?: string;
@@ -178,10 +187,10 @@ export interface SaleTransaction {
     customerName: string;
     customerEmail: string;
     customerWhatsapp: string;
-    products: SaleProductItem[]; // Products included in this specific transaction
+    products: SaleProductItem[]; 
     trackingParameters?: Record<string, string>;
-    isUpsellTransaction?: boolean; // True if this transaction is for an upsell
-    originalSaleId?: string; // Link back to the main sale if this is an upsell
+    isUpsellTransaction?: boolean; 
+    originalSaleId?: string; 
 }
 
 
@@ -193,18 +202,18 @@ export enum FunnelStage {
 }
 
 export interface Customer {
-  id: string; // Typically email
+  id: string; 
   platformUserId: string;
   name: string;
   email: string;
   whatsapp: string;
-  productsPurchased: string[]; // IDs of products
+  productsPurchased: string[]; 
   funnelStage: FunnelStage;
   firstPurchaseDate: string;
   lastPurchaseDate: string;
   totalOrders: number;
   totalSpentInCents: number;
-  saleIds: string[]; // IDs of Sale records
+  saleIds: string[]; 
 }
 
 // Abandoned Cart
@@ -227,6 +236,7 @@ export interface AbandonedCart {
   date: string;
   lastInteractionAt: string;
   status: AbandonedCartStatus;
+  trackingParameters?: Record<string, string>; 
 }
 
 // Finances
@@ -245,14 +255,14 @@ export interface Transaction {
 }
 
 // Integrations
+export type PixelType = 'Facebook Pixel' | 'Google Ads' | 'GTM' | 'TikTok Pixel';
 export interface PixelIntegration {
-  id: string;
-  name: 'Facebook Pixel' | 'Google Ads' | 'GTM' | 'TikTok Pixel';
-  settings: Record<string, string>;
+  id: string; 
+  type: PixelType; 
+  settings: Record<string, string>; 
   enabled: boolean;
 }
 
-// Settings - This entire object will be user-specific
 export interface AppSettings {
   customDomain?: string;
   checkoutIdentity: {
@@ -267,32 +277,31 @@ export interface AppSettings {
     pass: string;
   };
   apiTokens: {
-    pushinPay: string; // User's PushInPay token for receiving payments
+    pushinPay: string; 
     utmify: string;
-    pushinPayEnabled: boolean; // If user wants to use PushInPay for their sales
+    pushinPayEnabled: boolean; 
     utmifyEnabled: boolean;
   };
+  pixelIntegrations?: PixelIntegration[]; 
 }
 
-// New: Platform wide settings, managed by Super Admin
 export interface PlatformSettings {
-  id: 'global'; // Singleton ID
-  platformCommissionPercentage: number; // e.g., 0.01 for 1%
-  platformFixedFeeInCents: number; // e.g., 100 for R$1.00
-  platformAccountIdPushInPay: string; // PushInPay Account ID for platform commissions
+  id: 'global'; 
+  platformCommissionPercentage: number; 
+  platformFixedFeeInCents: number; 
+  platformAccountIdPushInPay: string; 
 }
 
-// New: Audit Log Entry
 export interface AuditLogEntry {
   id: string;
-  timestamp: string; // ISO date string
+  timestamp: string; 
   actorUserId: string;
   actorEmail: string;
-  actionType: string; // e.g., 'PLATFORM_SETTINGS_UPDATE', 'USER_STATUS_CHANGE'
-  targetEntityType?: string; // e.g., 'USER', 'PLATFORM_SETTINGS'
+  actionType: string; 
+  targetEntityType?: string; 
   targetEntityId?: string;
-  description: string; // Human-readable description of the action
-  details?: Record<string, any>; // For storing before/after states or other context
+  description: string; 
+  details?: Record<string, any>; 
 }
 
 
@@ -306,20 +315,30 @@ export interface MetricData {
   textColorClass: string;
 }
 
+export interface DashboardData {
+  totalRevenue: number;
+  numberOfSales: number;
+  averageTicket: number;
+  newCustomers: number;
+  salesTrend: { periodLabel: string; amount: number }[];
+  topSellingProducts?: { id: string; name: string; quantitySold: number; revenueGenerated: number; }[];
+}
+
+
 // PushInPay API Types
 export interface PushInPayPixRequest {
-  value: number; // This is the final value AFTER considering item prices and discounts
-  originalValueBeforeDiscount: number; // Value BEFORE discount (main product + bump)
+  value: number; 
+  originalValueBeforeDiscount: number; 
   webhook_url: string;
   customerName: string;
   customerEmail: string;
   customerWhatsapp: string;
-  products: SaleProductItem[]; // List of items in this specific PIX charge (can include bump)
+  products: SaleProductItem[]; 
   trackingParameters?: Record<string, string>;
   couponCodeUsed?: string;
   discountAppliedInCents?: number;
-  isUpsellTransaction?: boolean; // Added for upsell flow
-  originalSaleId?: string;      // Added for upsell flow
+  isUpsellTransaction?: boolean; 
+  originalSaleId?: string;      
 }
 
 export interface PushInPayPixResponseData {
@@ -327,10 +346,10 @@ export interface PushInPayPixResponseData {
   qr_code: string;
   qr_code_base64: string;
   status: PaymentStatus;
-  value: number; // Value of the PIX (after discount)
+  value: number; 
 }
 export interface PushInPayPixResponse {
-  data?: PushInPayPixResponseData; // Data is optional on failure
+  data?: PushInPayPixResponseData; 
   success: boolean;
   message?: string;
 }
@@ -343,7 +362,7 @@ export interface PushInPayTransactionStatusData {
 }
 
 export interface PushInPayTransactionStatusResponse {
-    data?: PushInPayTransactionStatusData; // Data is optional on failure
+    data?: PushInPayTransactionStatusData; 
     success: boolean;
     message?: string;
 }
@@ -361,46 +380,47 @@ export interface UtmifyCustomer {
 }
 
 export interface UtmifyProduct {
-  id: string; // product_id
+  id: string; 
   name: string;
   quantity: number;
-  priceInCents: number; // Price per unit in cents
+  priceInCents: number; 
   planId: string | null;
   planName: string | null;
-  isUpsell?: boolean; // Added to align with SaleProductItem
+  isUpsell?: boolean; 
+  slug?: string; // Added slug
 }
 
 export interface UtmifyCommission {
-  totalPriceInCents: number; // Total price after discounts
+  totalPriceInCents: number; 
   gatewayFeeInCents: number;
   userCommissionInCents: number;
   currency: string;
 }
 
 export interface UtmifyOrderPayload {
-  orderId: string; // Our internal Sale.id or SaleTransaction.id
+  orderId: string; 
   platform: string;
   paymentMethod: "pix" | "credit_card" | "boleto";
   status: PaymentStatus;
-  createdAt: string; // ISO8601 UTC-3
+  createdAt: string; 
   customer: UtmifyCustomer;
-  products: UtmifyProduct[]; // Should reflect actual items sold (including bump/upsell)
+  products: UtmifyProduct[]; 
   trackingParameters?: Record<string, string | null>;
-  commission?: UtmifyCommission; // Based on final price after discount
-  approvedDate?: string | null; // ISO8601 UTC-3
-  refundedAt?: string | null; // ISO8601 UTC-3
+  commission?: UtmifyCommission; 
+  approvedDate?: string | null; 
+  refundedAt?: string | null; 
   isTest?: boolean;
   couponCodeUsed?: string;
   discountAppliedInCents?: number;
-  originalAmountBeforeDiscountInCents?: number; // Added
-  isUpsellTransaction?: boolean; // To indicate if this UTMify payload is for an upsell part of an order
-  originalSaleId?: string; // If it's an upsell, what was the original sale ID
+  originalAmountBeforeDiscountInCents?: number; 
+  isUpsellTransaction?: boolean; 
+  originalSaleId?: string; 
 }
 
 export interface UtmifyResponse {
   success: boolean;
   message?: string;
-  data?: any; // Can include utmifyTrackingId or other response data
+  data?: any; 
 }
 
 // For navigation items

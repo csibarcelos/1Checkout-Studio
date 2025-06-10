@@ -1,9 +1,8 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { Button } from '../components/ui/Button';
-import { Sale, Product, Customer, PaymentStatus } from '../types';
+import { Sale, Product, Customer, PaymentStatus, SaleProductItem } from '../types';
 import { salesService } from '../services/salesService';
 import { productService } from '../services/productService';
 import { customerService } from '../services/customerService';
@@ -49,21 +48,15 @@ export const DashboardPage: React.FC = () => {
   ];
 
   const fetchInitialData = useCallback(async () => {
-    // Não depende mais do accessToken diretamente aqui, pois os serviços buscarão o userId internamente.
-    // Mas esperamos que o authLoading seja false.
     if (authLoading) {
         return;
     }
-    // Se accessToken for null após authLoading ser false, significa que não há sessão.
-    // Os serviços como getSupabaseUserId() retornarão null e os serviços lidarão com isso.
     
     setIsLoading(true);
     setError(null);
     try {
-      // accessToken não é mais passado diretamente para os serviços que usam Supabase client.
-      // O productService já não usava para getProducts da mesma forma.
       const [salesRes, productsRes, customersRes] = await Promise.all([
-        salesService.getSales(accessToken), // Passando accessToken, pois os serviços podem precisar dele para outras lógicas ou se o apiClient fosse usado
+        salesService.getSales(accessToken), 
         productService.getProducts(accessToken), 
         customerService.getCustomers(accessToken) 
       ]);
@@ -76,10 +69,10 @@ export const DashboardPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [authLoading, accessToken]); // accessToken ainda é uma dependência para re-executar se mudar.
+  }, [authLoading, accessToken]); 
 
   useEffect(() => {
-    if (!authLoading) { // Só busca dados se a autenticação não estiver carregando
+    if (!authLoading) { 
         fetchInitialData();
     }
   }, [fetchInitialData, authLoading]);
@@ -135,7 +128,7 @@ export const DashboardPage: React.FC = () => {
     return `${firstPeriod} - ${lastPeriod}`;
   };
 
-  if (authLoading || (isLoading && !dashboardData)) { // Adicionado authLoading aqui
+  if (authLoading || (isLoading && !dashboardData)) { 
     return (
       <div className="flex justify-center items-center h-[calc(100vh-150px)]">
         <LoadingSpinner size="lg" />
@@ -231,7 +224,9 @@ export const DashboardPage: React.FC = () => {
                 <li key={sale.id} className="py-3">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="text-sm font-medium text-neutral-100">{sale.products.map(p => p.name).join(', ')}</p>
+                      <p className="text-sm font-medium text-neutral-100">
+                        {Array.isArray(sale.products) ? sale.products.map((p: SaleProductItem) => p.name).join(', ') : 'Produtos Indisponíveis'}
+                      </p>
                       <p className="text-xs text-neutral-400">Para: {sale.customer.email}</p>
                     </div>
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.status === PaymentStatus.PAID ? 'bg-green-700 text-green-100' : 'bg-yellow-600 text-yellow-100'}`}>

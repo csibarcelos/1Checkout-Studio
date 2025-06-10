@@ -1,7 +1,7 @@
 
 import { PushInPayPixRequest, PushInPayPixResponseData, PaymentStatus, SaleProductItem } from '../../types';
 
-export const pushinPayService = {
+export const pushInPayService = {
   generatePixCharge: async (payload: PushInPayPixRequest, apiToken: string, enabled: boolean): Promise<PushInPayPixResponseData> => {
     // Mock implementation
     return new Promise((resolve, reject) => {

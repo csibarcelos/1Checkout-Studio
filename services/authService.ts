@@ -1,18 +1,18 @@
 
-import { getSupabaseClient } from '../supabaseClient'; // Importar a função
+import { supabase } from '../supabaseClient'; // Updated import
 import { SUPER_ADMIN_EMAIL } from '../constants'; 
 import { AppUser } from '../contexts/AuthContext'; 
 import { AuthUser } from '@supabase/supabase-js'; 
 
 export const authService = {
   async getCurrentSupabaseUser(): Promise<AuthUser | null> {
-    const supabase = getSupabaseClient(); // Obter o cliente
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const { data: { session } } = await supabase.auth.getSession();
     return session?.user || null;
   },
 
   async getCurrentAppUser(): Promise<AppUser | null> {
-    const supabase = getSupabaseClient();
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return null;
 
@@ -54,7 +54,7 @@ export const authService = {
   },
 
   async getToken(): Promise<string | null> {
-    const supabase = getSupabaseClient();
+    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token || null;
   }

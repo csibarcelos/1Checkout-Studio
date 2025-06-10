@@ -1,14 +1,13 @@
 
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { AuditLogEntry } from '../../types';
-import { apiClient } from '../../services/apiClient';
+// import { apiClient } from '../../services/apiClient'; // Removido
 import { useAuth } from '../../contexts/AuthContext';
-import { TableCellsIcon } from '@heroicons/react/24/outline'; // Or another suitable icon
+import { TableCellsIcon } from '@heroicons/react/24/outline'; 
 
 const formatTimestamp = (timestamp: string): string => {
   return new Date(timestamp).toLocaleString('pt-BR', {
@@ -50,12 +49,13 @@ export const SuperAdminAuditLogPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const logsData = await apiClient.request<AuditLogEntry[]>({
-        method: 'GET',
-        endpoint: '/superadmin/audit-logs',
-        token: accessToken,
-      });
+      // TODO: Implementar chamada direta ao Supabase para buscar os logs de auditoria.
+      // const logsData = await someSuperAdminAuditService.getAuditLogs(accessToken);
+      const logsData: AuditLogEntry[] = []; // Placeholder
       setAuditLogs(logsData);
+      if (logsData.length === 0) {
+        setError("SuperAdmin AuditLogs: Integração de dados via Supabase pendente ou nenhum log encontrado.");
+      }
     } catch (err: any) {
       setError(err.error?.message || 'Falha ao carregar logs de auditoria.');
     } finally {
@@ -92,7 +92,7 @@ export const SuperAdminAuditLogPage: React.FC = () => {
 
       <Card className="p-0 sm:p-0">
         {auditLogs.length === 0 && !isLoading ? (
-          <p className="p-6 text-center text-neutral-500">Nenhuma entrada de log de auditoria encontrada.</p>
+          <p className="p-6 text-center text-neutral-500">{error || "Nenhuma entrada de log de auditoria encontrada."}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-neutral-200">

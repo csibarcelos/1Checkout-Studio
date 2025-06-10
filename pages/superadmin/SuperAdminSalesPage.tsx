@@ -1,12 +1,9 @@
-
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Sale, PaymentStatus, SaleProductItem } from '../../types';
-import { apiClient } from '../../services/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { BanknotesIcon } from '@heroicons/react/24/outline';
 
@@ -48,8 +45,13 @@ export const SuperAdminSalesPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const salesData = await apiClient.request<Sale[]>({ method: 'GET', endpoint: '/superadmin/sales', token: accessToken });
+      // TODO: Implementar chamada direta ao Supabase para buscar todas as vendas.
+      // const salesData = await someSuperAdminSalesService.getAllSales(accessToken);
+      const salesData: Sale[] = []; // Placeholder
       setSales(salesData.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      if (salesData.length === 0) {
+        setError("SuperAdmin Sales: Integração de dados via Supabase pendente ou nenhuma venda encontrada.");
+      }
     } catch (err: any) {
       setError(err.error?.message || 'Falha ao carregar vendas.');
     } finally {
@@ -87,7 +89,7 @@ export const SuperAdminSalesPage: React.FC = () => {
 
       <Card className="p-0 sm:p-0">
         {sales.length === 0 && !isLoading ? (
-          <p className="p-6 text-center text-neutral-500">Nenhuma venda encontrada na plataforma.</p>
+          <p className="p-6 text-center text-neutral-500">{error || "Nenhuma venda encontrada na plataforma."}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-neutral-200">
@@ -151,7 +153,7 @@ export const SuperAdminSalesPage: React.FC = () => {
              </section>
              <section>
                 <h3 className="text-md font-semibold text-neutral-700 border-b pb-1 mb-2">Produtos</h3>
-                {selectedSale.products.map((item: SaleProductItem, idx: number) => (
+                {Array.isArray(selectedSale.products) && selectedSale.products.map((item: SaleProductItem, idx: number) => (
                     <div key={idx} className="mb-1 p-2 bg-neutral-50 rounded-sm text-sm">
                         <p className="font-medium text-neutral-700">{item.name} {item.isOrderBump ? '(Order Bump)' : item.isUpsell ? '(Upsell)' : ''}</p>
                         <p>Qtd: {item.quantity} | Preço Unit.: {formatCurrency(item.priceInCents / item.quantity)} | Total: {formatCurrency(item.priceInCents)}</p>

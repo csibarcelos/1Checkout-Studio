@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -7,9 +6,9 @@ import { Modal } from '../../components/ui/Modal';
 import { Button, ToggleSwitch } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { User } from '../../types';
-import { apiClient } from '../../services/apiClient';
+// import { apiClient } from '../../services/apiClient'; // Removido
 import { useAuth } from '../../contexts/AuthContext';
-import { UsersIcon, SUPER_ADMIN_EMAIL } from '../../constants'; // Added SUPER_ADMIN_EMAIL import
+import { UsersIcon, SUPER_ADMIN_EMAIL } from '../../constants'; 
 
 export const SuperAdminUsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -37,8 +36,13 @@ export const SuperAdminUsersPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const usersData = await apiClient.request<User[]>({ method: 'GET', endpoint: '/superadmin/users', token: accessToken });
+      // TODO: Implementar chamada direta ao Supabase para buscar todos os usuários.
+      // const usersData = await someSuperAdminUserService.getAllUsers(accessToken);
+      const usersData: User[] = []; // Placeholder
       setUsers(usersData);
+      if (usersData.length === 0) {
+        setError("SuperAdmin Users: Integração de dados via Supabase pendente ou nenhum usuário encontrado.");
+      }
     } catch (err: any) {
       setError(err.error?.message || 'Falha ao carregar usuários.');
     } finally {
@@ -85,14 +89,11 @@ export const SuperAdminUsersPage: React.FC = () => {
     }
 
     try {
-        await apiClient.request<User, typeof updates>({
-            method: 'PUT',
-            endpoint: `/superadmin/users/${selectedUser.id}`,
-            body: updates,
-            token: accessToken
-        });
-        fetchUsers(); // Refresh users list
-        handleCloseUserDetails();
+        // TODO: Implementar chamada direta ao Supabase para atualizar o usuário.
+        // await someSuperAdminUserService.updateUser(selectedUser.id, updates, accessToken);
+        setModalError("SuperAdmin Users: Funcionalidade de salvar alterações pendente de integração com Supabase.");
+        // fetchUsers(); // Refresh users list (quando funcional)
+        // handleCloseUserDetails(); // (quando funcional)
     } catch (err: any) {
         setModalError(err.error?.message || "Falha ao salvar alterações.");
     } finally {
@@ -117,7 +118,7 @@ export const SuperAdminUsersPage: React.FC = () => {
 
       <Card className="p-0 sm:p-0">
         {users.length === 0 && !isLoading ? (
-          <p className="p-6 text-center text-neutral-500">Nenhum usuário encontrado.</p>
+          <p className="p-6 text-center text-neutral-500">{error || "Nenhum usuário encontrado."}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-neutral-200">
@@ -167,7 +168,7 @@ export const SuperAdminUsersPage: React.FC = () => {
                 label="Nome" 
                 value={modalUserName} 
                 onChange={(e) => setModalUserName(e.target.value)} 
-                disabled={isSavingUser || (isCurrentUserSelected && selectedUser.email === SUPER_ADMIN_EMAIL)} // Super admin's own name shouldn't be easily changed here if it's tied to SUPER_ADMIN_EMAIL logic.
+                disabled={isSavingUser || (isCurrentUserSelected && selectedUser.email === SUPER_ADMIN_EMAIL)}
             />
             <ToggleSwitch
                 label="Conta Ativa"

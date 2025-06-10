@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
@@ -7,7 +6,7 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Product, User, Coupon, OrderBumpOffer, UpsellOffer } from '../../types';
-import { apiClient } from '../../services/apiClient';
+// import { apiClient } from '../../services/apiClient'; // Removido
 import { useAuth } from '../../contexts/AuthContext';
 import { CubeIcon, ChartPieIcon } from '../../constants';
 
@@ -56,12 +55,17 @@ export const SuperAdminAllProductsPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [productsData, usersData] = await Promise.all([
-        apiClient.request<Product[]>({ method: 'GET', endpoint: '/superadmin/products', token: accessToken }),
-        apiClient.request<User[]>({ method: 'GET', endpoint: '/superadmin/users', token: accessToken })
-      ]);
+      // TODO: Implementar chamadas diretas ao Supabase para buscar todos os produtos e usuários.
+      // const productsData = await someSuperAdminProductService.getAllProducts(accessToken);
+      // const usersData = await someSuperAdminUserService.getAllUsers(accessToken);
+      const productsData: Product[] = []; // Placeholder
+      const usersData: User[] = []; // Placeholder
+      
       setAllProducts(productsData);
       setAllUsers(usersData);
+      if (productsData.length === 0) {
+        setError("SuperAdmin Products: Integração de dados via Supabase pendente ou nenhum produto encontrado.");
+      }
     } catch (err: any) {
       setError(err.error?.message || 'Falha ao carregar dados.');
     } finally {
@@ -100,7 +104,7 @@ export const SuperAdminAllProductsPage: React.FC = () => {
             const strB = valB_raw as string;
             return sortConfig.direction === 'ascending' ? strA.localeCompare(strB) : strB.localeCompare(strA);
           } else { // 'priceInCents' or 'totalSales'
-            let numA = valA_raw as number | undefined | null; // totalSales can be undefined
+            let numA = valA_raw as number | undefined | null; 
             let numB = valB_raw as number | undefined | null;
 
             numA = (numA === null || numA === undefined) ? (sortConfig.direction === 'ascending' ? Infinity : -Infinity) : numA;
@@ -146,7 +150,7 @@ export const SuperAdminAllProductsPage: React.FC = () => {
 
       <Card className="p-0 sm:p-0">
         {sortedProducts.length === 0 && !isLoading ? (
-          <p className="p-6 text-center text-neutral-500">Nenhum produto encontrado na plataforma.</p>
+          <p className="p-6 text-center text-neutral-500">{error || "Nenhum produto encontrado na plataforma."}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-neutral-200">

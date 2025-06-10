@@ -1,9 +1,9 @@
-// types/supabase.ts
-// Este arquivo é populado com os tipos gerados pelo Supabase CLI.
-// Certifique-se de que a saída do comando `supabase gen types typescript --project-id SEU_PROJECT_REF > types/supabase.ts`
-// esteja refletida aqui, especialmente para a tabela 'products'.
 
-import { SaleProductItem, PaymentMethod, PaymentStatus, FunnelStage } from "../types"; // Importar enums
+// types/supabase.ts
+// This file should ideally be populated by `supabase gen types typescript`.
+// The structure below is based on the assumed database schema.
+
+import { SaleProductItem, PaymentMethod, PaymentStatus, FunnelStage, PixelIntegration } from "../types";
 
 export type Json =
   | string
@@ -52,46 +52,46 @@ export interface Database {
       }
       products: {
         Row: {
-          id: string 
-          platform_user_id: string 
-          slug: string 
-          name: string 
-          description: string 
-          price_in_cents: number 
-          image_url: string | null 
-          checkout_customization: Json 
-          delivery_url: string | null 
-          total_sales: number | null 
-          clicks: number | null 
-          checkout_views: number | null 
-          conversion_rate: number | null 
-          abandonment_rate: number | null 
-          order_bump: Json | null 
-          upsell: Json | null 
-          coupons: Json | null 
-          created_at: string 
-          updated_at: string 
+          id: string
+          platform_user_id: string
+          slug: string
+          name: string
+          description: string
+          price_in_cents: number
+          image_url: string | null
+          checkout_customization: Json
+          delivery_url: string | null
+          total_sales: number | null
+          clicks: number | null
+          checkout_views: number | null
+          conversion_rate: number | null
+          abandonment_rate: number | null
+          order_bump: Json | null
+          upsell: Json | null
+          coupons: Json | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
-          id?: string 
+          id?: string
           platform_user_id: string
           slug: string
           name: string
           description: string
           price_in_cents: number
           image_url?: string | null
-          checkout_customization?: Json 
+          checkout_customization?: Json
           delivery_url?: string | null
-          total_sales?: number | null 
-          clicks?: number | null 
-          checkout_views?: number | null 
-          conversion_rate?: number | null 
-          abandonment_rate?: number | null 
+          total_sales?: number | null
+          clicks?: number | null
+          checkout_views?: number | null
+          conversion_rate?: number | null
+          abandonment_rate?: number | null
           order_bump?: Json | null
           upsell?: Json | null
-          coupons?: Json | null 
-          created_at?: string 
-          updated_at?: string 
+          coupons?: Json | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -112,7 +112,7 @@ export interface Database {
           upsell?: Json | null
           coupons?: Json | null
           created_at?: string
-          updated_at?: string 
+          updated_at?: string
         }
         Relationships: [
           {
@@ -123,34 +123,35 @@ export interface Database {
           }
         ]
       }
-      sales: { // Definição da tabela sales
+      sales: {
         Row: {
-          id: string 
-          platform_user_id: string 
-          push_in_pay_transaction_id: string 
+          id: string
+          platform_user_id: string
+          push_in_pay_transaction_id: string
           upsell_push_in_pay_transaction_id: string | null
           order_id_urmify: string | null
-          products: Json // Deverá ser SaleProductItem[]
+          products: Json
           customer_name: string
           customer_email: string
           customer_ip: string | null
           customer_whatsapp: string
-          payment_method: string // PaymentMethod enum como string
-          status: string // PaymentStatus enum como string
-          upsell_status: string | null // PaymentStatus enum como string
-          total_amount_in_cents: number 
+          payment_method: string
+          status: string
+          upsell_status: string | null
+          total_amount_in_cents: number
           upsell_amount_in_cents: number | null
-          original_amount_before_discount_in_cents: number 
+          original_amount_before_discount_in_cents: number
           discount_applied_in_cents: number | null
           coupon_code_used: string | null
-          created_at: string 
+          created_at: string
           paid_at: string | null
-          tracking_parameters: Json | null // Record<string, string>
+          tracking_parameters: Json | null
           commission_total_price_in_cents: number | null
           commission_gateway_fee_in_cents: number | null
           commission_user_commission_in_cents: number | null
           commission_currency: string | null
           platform_commission_in_cents: number | null
+          updated_at: string;
         }
         Insert: {
           id?: string
@@ -179,42 +180,62 @@ export interface Database {
           commission_user_commission_in_cents?: number | null
           commission_currency?: string | null
           platform_commission_in_cents?: number | null
+          updated_at?: string;
         }
         Update: {
-          // Similar à Insert, mas todos os campos são opcionais
-          id?: string 
-          platform_user_id?: string 
-          push_in_pay_transaction_id?: string 
+          id?: string
+          platform_user_id?: string
+          push_in_pay_transaction_id?: string
           upsell_push_in_pay_transaction_id?: string | null
-          // ...e assim por diante para todos os campos
+          order_id_urmify?: string | null
+          products?: Json
+          customer_name?: string
+          customer_email?: string
+          customer_ip?: string | null
+          customer_whatsapp?: string
+          payment_method?: string
           status?: string
+          upsell_status?: string | null
+          total_amount_in_cents?: number
+          upsell_amount_in_cents?: number | null
+          original_amount_before_discount_in_cents?: number
+          discount_applied_in_cents?: number | null
+          coupon_code_used?: string | null
+          created_at?: string
           paid_at?: string | null
+          tracking_parameters?: Json | null
+          commission_total_price_in_cents?: number | null
+          commission_gateway_fee_in_cents?: number | null
+          commission_user_commission_in_cents?: number | null
+          commission_currency?: string | null
+          platform_commission_in_cents?: number | null
+          updated_at?: string;
         }
         Relationships: [
           {
             foreignKeyName: "sales_platform_user_id_fkey"
             columns: ["platform_user_id"]
-            referencedRelation: "users" // Ou "profiles" dependendo do seu schema
+            referencedRelation: "users"
             referencedColumns: ["id"]
           }
         ]
       }
-      customers: { // Definição da tabela customers
+      customers: {
         Row: {
-          id: string // Email do cliente como ID
+          id: string
           platform_user_id: string
           name: string
           email: string
           whatsapp: string
-          products_purchased: string[] // array de product IDs
-          funnel_stage: string // FunnelStage enum como string
+          products_purchased: string[]
+          funnel_stage: string
           first_purchase_date: string
           last_purchase_date: string
           total_orders: number
           total_spent_in_cents: number
-          sale_ids: string[] // array de sale IDs
-          created_at: string // Adicionado
-          updated_at: string // Adicionado
+          sale_ids: string[]
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id: string
@@ -233,20 +254,148 @@ export interface Database {
           updated_at?: string
         }
         Update: {
-           // Similar à Insert, mas todos os campos são opcionais
           id?: string
-          // ...e assim por diante
+          platform_user_id?: string
           name?: string
+          email?: string
+          whatsapp?: string
+          products_purchased?: string[]
+          funnel_stage?: string
+          first_purchase_date?: string
           last_purchase_date?: string
           total_orders?: number
           total_spent_in_cents?: number
+          sale_ids?: string[]
+          created_at?: string
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "customers_platform_user_id_fkey"
             columns: ["platform_user_id"]
-            referencedRelation: "users" // Ou "profiles"
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      app_settings: {
+        Row: {
+          platform_user_id: string
+          custom_domain: string | null
+          checkout_identity: Json | null
+          smtp_settings: Json | null
+          api_tokens: Json | null
+          pixel_integrations: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          platform_user_id: string
+          custom_domain?: string | null
+          checkout_identity?: Json | null
+          smtp_settings?: Json | null
+          api_tokens?: Json | null
+          pixel_integrations?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          platform_user_id?: string
+          custom_domain?: string | null
+          checkout_identity?: Json | null
+          smtp_settings?: Json | null
+          api_tokens?: Json | null
+          pixel_integrations?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_settings_platform_user_id_fkey"
+            columns: ["platform_user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      platform_settings: {
+        Row: {
+          id: "global"
+          platform_commission_percentage: number
+          platform_fixed_fee_in_cents: number
+          platform_account_id_push_in_pay: string // CORRIGIDO AQUI
+          updated_at: string
+        }
+        Insert: {
+          id: "global"
+          platform_commission_percentage: number
+          platform_fixed_fee_in_cents: number
+          platform_account_id_push_in_pay: string // CORRIGIDO AQUI
+          updated_at?: string
+        }
+        Update: {
+          id?: "global"
+          platform_commission_percentage?: number
+          platform_fixed_fee_in_cents?: number
+          platform_account_id_push_in_pay?: string // CORRIGIDO AQUI
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      abandoned_carts: {
+        Row: {
+          id: string
+          platform_user_id: string
+          customer_name: string
+          customer_email: string
+          customer_whatsapp: string
+          product_id: string
+          product_name: string
+          potential_value_in_cents: number
+          created_at: string
+          last_interaction_at: string
+          status: string
+          tracking_parameters: Json | null
+        }
+        Insert: {
+          id?: string
+          platform_user_id: string
+          customer_name: string
+          customer_email: string
+          customer_whatsapp: string
+          product_id: string
+          product_name: string
+          potential_value_in_cents: number
+          created_at?: string
+          last_interaction_at?: string
+          status?: string
+          tracking_parameters?: Json | null
+        }
+        Update: {
+          id?: string
+          platform_user_id?: string
+          customer_name?: string
+          customer_email?: string
+          customer_whatsapp?: string
+          product_id?: string
+          product_name?: string
+          potential_value_in_cents?: number
+          created_at?: string
+          last_interaction_at?: string
+          status?: string
+          tracking_parameters?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abandoned_carts_platform_user_id_fkey"
+            columns: ["platform_user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abandoned_carts_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
             referencedColumns: ["id"]
           }
         ]

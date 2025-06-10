@@ -1,9 +1,11 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
-import { AuthProvider } from './contexts/AuthContext';
-import './global.css'; // Import Tailwind CSS styles
+import App from './App'; // Corrigido de ./src/App
+import { AuthProvider } from './contexts/AuthContext'; // Corrigido de ./src/contexts/AuthContext
+import './global.css'; // Corrigido de ./src/global.css
+
+// Entry point of the application
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
