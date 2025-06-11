@@ -27,7 +27,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PROFILE_FETCH_TIMEOUT = 7000; 
+const PROFILE_FETCH_TIMEOUT = 60000; 
 const TIMEOUT_SYMBOL = Symbol("timeout");
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
