@@ -172,8 +172,9 @@ export const ProductEditPage: React.FC = () => {
     try {
       const updatedProductData: Partial<Omit<Product, 'id' | 'platformUserId' | 'slug'>> = {
         name: productName, description, priceInCents: priceInCentsNum,
-        imageUrl: imageUrl.trim() || undefined,
-        deliveryUrl: deliveryUrl.trim() || undefined, checkoutCustomization,
+        imageUrl: imageUrl.trim(), // Envia string vazia, serviço converterá para null
+        deliveryUrl: deliveryUrl.trim(), // Envia string vazia, serviço converterá para null
+        checkoutCustomization,
         orderBump: orderBump?.productId ? orderBump : undefined,
         upsell: upsell?.productId ? upsell : undefined,
         coupons: coupons.length > 0 ? coupons : undefined,

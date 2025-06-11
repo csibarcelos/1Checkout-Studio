@@ -164,10 +164,10 @@ export const ProductCreatePage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const productData: Omit<Product, 'id' | 'platformUserId' | 'totalSales' | 'clicks' | 'checkoutViews' | 'conversionRate' | 'abandonmentRate'> = {
+      const productData: Omit<Product, 'id' | 'platformUserId' | 'totalSales' | 'clicks' | 'checkoutViews' | 'conversionRate' | 'abandonmentRate' | 'slug'> = {
         name: productName, description, priceInCents: priceInCentsNum,
-        imageUrl: imageUrl.trim() || undefined,
-        deliveryUrl: deliveryUrl.trim() || undefined,
+        imageUrl: imageUrl.trim(), // Envia string vazia se limpo, serviço converterá para null
+        deliveryUrl: deliveryUrl.trim(), // Envia string vazia se limpo, serviço converterá para null
         checkoutCustomization,
         orderBump: orderBump?.productId ? orderBump : undefined,
         upsell: upsell?.productId ? upsell : undefined,

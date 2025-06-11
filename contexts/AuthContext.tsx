@@ -22,12 +22,13 @@ interface AuthContextType {
   login: (email: string, password_not_name: string) => Promise<void>;
   register: (email: string, name: string, password_not_name: string) => Promise<void>;
   logout: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PROFILE_FETCH_TIMEOUT = 21; 
+const PROFILE_FETCH_TIMEOUT = 7000; 
 const TIMEOUT_SYMBOL = Symbol("timeout");
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -224,9 +225,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password: password_not_name });
       if (error) throw error;
+      // processSessionAndUser will be triggered by onAuthStateChange
     } catch (error: any) {
       console.error("AuthContext: login - Error:", error.message, error.stack);
-      if (mountedRef.current) setIsLoading(false);
+      if (mountedRef.current) setIsLoading(false); // Ensure loading is false on error
       throw new Error(error.message || 'Falha no login.');
     }
   }, []);
@@ -242,10 +244,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       if (signUpError) throw signUpError;
       if (!signUpResponse.user) throw new Error("Registro falhou, usuário não retornado.");
+      // processSessionAndUser will be triggered by onAuthStateChange if email confirmation is not required
+      // If email confirmation IS required, user will not be set until confirmed.
     } catch (error: any) {
-      console.error("AuthContext: register - Error:", error.message, error.stack);
+      // Log detalhado do erro do Supabase
+      console.error("AuthContext: register - FULL ERROR OBJECT:", error);
+      console.error("AuthContext: register - Error Message:", error.message);
+      console.error("AuthContext: register - Error Stack:", error.stack);
+      if (error.code) console.error("AuthContext: register - Error Code:", error.code);
+      if (error.details) console.error("AuthContext: register - Error Details:", error.details);
+      if (error.hint) console.error("AuthContext: register - Error Hint:", error.hint);
+      
       if (mountedRef.current) setIsLoading(false);
-      throw new Error(error.message || 'Falha no registro.');
+      let displayMessage = 'Falha no registro.';
+      if (typeof error.message === 'string' && error.message.toLowerCase().includes('email rate limit exceeded')) {
+        displayMessage = 'Limite de taxa de e-mail excedido. Tente novamente mais tarde.';
+      } else if (typeof error.message === 'string' && error.message.toLowerCase().includes('database error saving new user')) {
+        displayMessage = 'Erro no banco de dados ao salvar novo usuário. Verifique as configurações do Supabase (SMTP, Triggers, RLS).';
+      } else if (error.message) {
+        displayMessage = error.message;
+      }
+      throw new Error(displayMessage);
     }
   }, []);
 
@@ -261,7 +280,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const isAuthenticated = !!session && !!user && (user.isActive ?? true); // Assume true if isActive is null/undefined
+  const requestPasswordReset = useCallback(async (email: string) => {
+    if (!mountedRef.current) return;
+    try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}${window.location.pathname}#/reset-password`,
+        });
+        if (error) throw error;
+    } catch (error: any) {
+        console.error("AuthContext: requestPasswordReset - Error:", error.message, error.stack);
+        throw new Error(error.message || 'Falha ao solicitar redefinição de senha.');
+    }
+  }, []);
+
+
+  const isAuthenticated = !!session && !!user && (user.isActive ?? true);
   const isSuperAdminValue = isAuthenticated && (user?.isSuperAdmin ?? false);
   const accessToken = session?.access_token || null;
 
@@ -274,8 +307,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     login,
     register,
     logout,
+    requestPasswordReset,
     isLoading, 
-  }), [user, session, accessToken, isAuthenticated, isSuperAdminValue, login, register, logout, isLoading]);
+  }), [user, session, accessToken, isAuthenticated, isSuperAdminValue, login, register, logout, requestPasswordReset, isLoading]);
 
   return (
     <AuthContext.Provider value={contextValue}>

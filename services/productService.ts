@@ -133,9 +133,9 @@ export const productService = {
       name: productData.name,
       description: productData.description,
       price_in_cents: productData.priceInCents,
-      image_url: productData.imageUrl,
+      image_url: productData.imageUrl === '' ? null : productData.imageUrl,
       checkout_customization: productData.checkoutCustomization as unknown as Json,
-      delivery_url: productData.deliveryUrl,
+      delivery_url: productData.deliveryUrl === '' ? null : productData.deliveryUrl,
       order_bump: productData.orderBump as unknown as Json,
       upsell: productData.upsell as unknown as Json,
       coupons: productData.coupons as unknown as Json,
@@ -158,24 +158,32 @@ export const productService = {
   },
 
   updateProduct: async (id: string, updates: Partial<Omit<Product, 'id' | 'platformUserId' | 'slug'>>, _token: string | null): Promise<Product | undefined> => {
-    // const supabaseJsClient = getSupabaseClient(); // No longer needed
     const userId = await getSupabaseUserId();
     if (!userId) throw new Error('Usuário não autenticado para atualizar produto.');
     
+    const currentProduct = await productService.getProductById(id, _token); // Fetch current product
+    if (!currentProduct) {
+        throw new Error(`Produto com ID ${id} não encontrado para atualização.`);
+    }
+
     const updatesForSupabase: ProductUpdate = {
         ...(updates.name && { name: updates.name }),
         ...(updates.description && { description: updates.description }),
         ...(updates.priceInCents !== undefined && { price_in_cents: updates.priceInCents }),
-        ...(updates.imageUrl !== undefined && { image_url: updates.imageUrl }),
+        ...(updates.imageUrl !== undefined && { image_url: updates.imageUrl === '' ? null : updates.imageUrl }),
         ...(updates.checkoutCustomization && { checkout_customization: updates.checkoutCustomization as unknown as Json }),
-        ...(updates.deliveryUrl !== undefined && { delivery_url: updates.deliveryUrl }),
+        ...(updates.deliveryUrl !== undefined && { delivery_url: updates.deliveryUrl === '' ? null : updates.deliveryUrl }),
         ...(updates.orderBump !== undefined && { order_bump: updates.orderBump as unknown as Json }),
         ...(updates.upsell !== undefined && { upsell: updates.upsell as unknown as Json }),
         ...(updates.coupons !== undefined && { coupons: updates.coupons as unknown as Json }),
     };
+    
+    if (updates.name && currentProduct.name !== updates.name) {
+        updatesForSupabase.slug = generateSlugFromName(updates.name);
+    }
 
     try {
-      const { data, error } = await supabase // Use imported supabase
+      const { data, error } = await supabase 
         .from('products')
         .update(updatesForSupabase)
         .eq('id', id)
