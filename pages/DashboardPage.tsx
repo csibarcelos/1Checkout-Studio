@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
@@ -14,7 +15,7 @@ import {
     CurrencyDollarIcon,
     WhatsAppIcon,
     generateWhatsAppLink
-} from '../constants';
+} from '../constants.tsx'; // MODIFICADO DE @/constants.tsx
 import { useAuth } from '../contexts/AuthContext';
 
 const formatCurrency = (valueInCents: number, showSymbol = true): string => {

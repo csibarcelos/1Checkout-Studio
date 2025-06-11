@@ -11,25 +11,28 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "node", // Alterado de "bundler" para "node" que é mais comum com Vite e tsconfig geral
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client"]
-    // "baseUrl" e "paths" foram removidos pois eram para a estrutura src/
+    "types": ["vite/client"],
+    "baseUrl": ".", // Define a base URL para resolução de módulos
+    "paths": {
+      "@/*": ["*"] // Mapeia '@/*' para a raiz do projeto (onde quer que tsconfig.json esteja)
+    }
   },
   "include": [
-    "**/*.ts", // Inclui todos os arquivos .ts no projeto
-    "**/*.tsx", // Inclui todos os arquivos .tsx no projeto
-    "index.tsx" // Especificamente o ponto de entrada se não coberto acima (mas **/* deve cobrir)
+    "**/*.ts",
+    "**/*.tsx",
+    "index.tsx"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "vite.config.ts", // Já coberto por tsconfig.node.json
-    "tailwind.config.js", // Já coberto por tsconfig.node.json
-    "postcss.config.js" // Já coberto por tsconfig.node.json
+    "vite.config.ts",
+    "tailwind.config.js",
+    "postcss.config.js"
   ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

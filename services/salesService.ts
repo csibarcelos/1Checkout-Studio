@@ -2,7 +2,7 @@
 import { Sale, SaleProductItem, PaymentMethod, PaymentStatus, PlatformSettings } from '../types'; 
 import { supabase, getSupabaseUserId } from '../supabaseClient'; // Updated import
 import { Database, Json } from '../types/supabase';
-import { DEFAULT_CURRENCY } from '../constants';
+import { DEFAULT_CURRENCY } from '../constants.tsx'; 
 
 type SaleRow = Database['public']['Tables']['sales']['Row'];
 type SaleInsert = Database['public']['Tables']['sales']['Insert'];
@@ -117,12 +117,11 @@ export const salesService = {
       commission_total_price_in_cents: platformCommissionBase,
       commission_gateway_fee_in_cents: gatewayFeeInCents,
       commission_user_commission_in_cents: userNetRevenue,
-      commission_currency: DEFAULT_CURRENCY, 
-      updated_at: new Date().toISOString(),
+      commission_currency: DEFAULT_CURRENCY,
     };
 
     try {
-      const { data, error } = await supabase // Use imported supabase
+      const { data, error } = await supabase
         .from('sales')
         .insert(fullSaleData)
         .select()
@@ -130,13 +129,15 @@ export const salesService = {
 
       if (error) {
         console.error('Supabase createSale error:', error);
-        throw new Error(error.message || 'Falha ao criar registro de venda.');
+        throw new Error(error.message || 'Falha ao criar venda');
       }
-      if (!data) throw new Error('Falha ao criar venda, dados não retornados.');
+      if (!data) {
+        throw new Error('Falha ao criar venda, dados não retornados.');
+      }
       return fromSupabaseSaleRow(data);
     } catch (error: any) {
       console.error('Exception in createSale:', error);
-      throw new Error(error.message || 'Falha geral ao criar registro de venda.');
+      throw new Error(error.message || 'Falha geral ao criar venda.');
     }
   },
 };

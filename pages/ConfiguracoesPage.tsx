@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { settingsService } from '../services/settingsService';
 import { AppSettings } from '../types';
-import { CogIcon, COLOR_PALETTE_OPTIONS, CheckCircleIcon, InformationCircleIcon } from '../constants';
+import { CogIcon, COLOR_PALETTE_OPTIONS, CheckCircleIcon, InformationCircleIcon } from '../constants.tsx'; 
 import { useAuth } from '../contexts/AuthContext';
 
 const initialAppSettings: AppSettings = {
@@ -121,8 +121,6 @@ export const ConfiguracoesPage: React.FC = () => {
         // Melhor ainda: settingsService.saveAppSettings deve aceitar apenas os campos que esta página gerencia.
         // Para o propósito desta correção, vamos assumir que settingsService.saveAppSettings
         // fará um upsert apenas dos campos fornecidos, ou que `settings` contém o estado completo.
-        // O ideal seria que o service tivesse métodos mais granulares ou que a UI
-        // carregasse e enviasse o objeto AppSettings completo.
         // Dado que getAppSettings retorna o AppSettings completo, settings state DEVE estar completo.
       };
       await settingsService.saveAppSettings(settings, accessToken); // Envia o objeto 'settings' completo

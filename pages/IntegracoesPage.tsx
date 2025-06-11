@@ -7,7 +7,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { Modal } from '../components/ui/Modal';
 import { settingsService } from '../services/settingsService';
 import { AppSettings, PixelIntegration, PixelType } from '../types';
-import { LinkIcon, KeyIcon, PlusIcon, PencilIcon, TrashIcon, TagIcon } from '../constants';
+import { LinkIcon, KeyIcon, PlusIcon, PencilIcon, TrashIcon, TagIcon } from '../constants.tsx'; 
 import { useAuth } from '../contexts/AuthContext';
 
 const PIXEL_TYPES: PixelType[] = ['Facebook Pixel', 'Google Ads', 'GTM', 'TikTok Pixel'];

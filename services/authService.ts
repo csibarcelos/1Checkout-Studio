@@ -1,6 +1,6 @@
 
 import { supabase } from '../supabaseClient'; // Updated import
-import { SUPER_ADMIN_EMAIL } from '../constants'; 
+import { SUPER_ADMIN_EMAIL } from '../constants.tsx'; 
 import { AppUser } from '../contexts/AuthContext'; 
 import { AuthUser } from '@supabase/supabase-js'; 
 

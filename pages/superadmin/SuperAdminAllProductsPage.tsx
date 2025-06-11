@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Product, User, Coupon, OrderBumpOffer, UpsellOffer } from '../../types';
 // import { apiClient } from '../../services/apiClient'; // Removido
 import { useAuth } from '../../contexts/AuthContext';
-import { CubeIcon, ChartPieIcon } from '../../constants';
+import { CubeIcon, ChartPieIcon } from '../../constants.tsx'; 
 
 const formatCurrency = (valueInCents: number): string => {
     return `R$ ${(valueInCents / 100).toFixed(2).replace('.', ',')}`;

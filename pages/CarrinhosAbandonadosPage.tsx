@@ -8,7 +8,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { Modal } from '../components/ui/Modal';
 import { AbandonedCart, AbandonedCartStatus } from '../types';
 import { abandonedCartService } from '../services/abandonedCartService';
-import { ArchiveBoxXMarkIcon, WhatsAppIcon, generateWhatsAppLink } from '../constants'; // Using existing icon
+import { ArchiveBoxXMarkIcon, WhatsAppIcon, generateWhatsAppLink } from '../constants.tsx'; 
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth
 
 const getStatusLabel = (status: AbandonedCartStatus) => {

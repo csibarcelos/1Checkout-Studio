@@ -1,6 +1,6 @@
 
 import { Product, Coupon, OrderBumpOffer, UpsellOffer, ProductCheckoutCustomization } from '../types';
-import { supabase, getSupabaseUserId } from '../supabaseClient'; // Importar a função e a instância
+import { supabase, getSupabaseUserId } from '../supabaseClient'; 
 import { Database, Json } from '../types/supabase';
 
 type ProductRow = Database['public']['Tables']['products']['Row'];

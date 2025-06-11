@@ -8,8 +8,9 @@ import { salesService } from '../services/salesService';
 import { productService } from '../services/productService';
 import { Sale, SaleProductItem, Product, UpsellOffer, PaymentStatus, PushInPayPixRequest, PushInPayPixResponseData, PushInPayPixResponse } from '../types';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { CheckCircleIcon, DocumentDuplicateIcon, MOCK_WEBHOOK_URL } from '../constants'; 
-import { pushInPayService } from '../services/pushinPayService'; // Para placeholder
+import { CheckCircleIcon, DocumentDuplicateIcon, MOCK_WEBHOOK_URL } from '../constants.tsx'; // MODIFICADO DE @/constants.tsx
+import { pushInPayService } from '../services/pushinPayService'; 
+import { Input } from '../components/ui/Input'; // Added missing import
 
 
 const formatCurrency = (valueInCents: number): string => {
@@ -120,150 +121,136 @@ export const ThankYouPage: React.FC = () => {
         originalSaleId: mainSaleDetails.id,
       };
 
-      const response = await pushInPayService.generatePixCharge(upsellPixPayload, "USER_PUSHINPAY_TOKEN_PLACEHOLDER", true);
+      // Corrected call: Pass mainSaleDetails.platformUserId as the second argument
+      const response = await pushInPayService.generatePixCharge(upsellPixPayload, mainSaleDetails.platformUserId);
 
-      if (response.success && response.data && response.data.id) { 
+      if (response.success && response.data && response.data.id){
         setUpsellPixData(response.data);
-        setUpsellErrorMessage("Funcionalidade de pagamento de upsell requer backend. PIX não gerado.");
+        // Add logic to update the mainSaleDetails with upsellPushInPayTransactionId if needed
+        // This usually happens after payment confirmation of upsell.
+        // For now, we just show the PIX.
       } else {
-        throw new Error(response.message || "Falha ao gerar PIX para a oferta adicional (placeholder).");
+        setUpsellErrorMessage(response.message || "Falha ao gerar PIX para oferta adicional.");
       }
-    } catch (err: any) {
-      setUpsellErrorMessage(err.message || "Erro ao processar oferta adicional (placeholder).");
+    } catch (paymentError: any) {
+        setUpsellErrorMessage(paymentError.message || "Erro desconhecido ao processar oferta adicional.");
     } finally {
-      setIsProcessingUpsell(false);
+        setIsProcessingUpsell(false);
     }
   };
   
   const handleDeclineUpsell = () => {
     setShowUpsellModal(false);
+    // Potentially track declined upsell
   };
-
 
   const copyUpsellPixCode = () => {
     if (upsellPixData?.qr_code) {
-      navigator.clipboard.writeText(upsellPixData.qr_code).then(() => {
-        setCopySuccessUpsell(true);
-        setTimeout(() => setCopySuccessUpsell(false), 2000);
-      }, () => alert('Falha ao copiar o código PIX. Tente manualmente.'));
+        navigator.clipboard.writeText(upsellPixData.qr_code).then(() => {
+            setCopySuccessUpsell(true);
+            setTimeout(() => setCopySuccessUpsell(false), 2000);
+        });
     }
   };
 
 
-  if (isLoading && !mainSaleDetails) {
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-screen"><LoadingSpinner size="lg" /></div>;
+  }
+
+  if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-100 p-4">
-        <LoadingSpinner size="lg" />
-        <p className="mt-4 text-neutral-600">Processando seu pedido...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-100 p-6 text-center">
+        <Card className="max-w-md w-full shadow-xl">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Erro!</h1>
+          <p className="text-neutral-700 mb-6">{error}</p>
+          <Button onClick={() => navigate('/')} variant="primary">Voltar para Home</Button>
+        </Card>
       </div>
     );
   }
   
-  if (error && !mainSaleDetails) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-100 p-4">
-        <Card className="w-full max-w-lg text-center shadow-2xl">
-           <svg className="h-20 w-20 text-red-500 mx-auto mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-           </svg>
-           <h1 className="text-2xl font-bold text-neutral-800 mb-3">Erro ao Carregar Pedido</h1>
-           <p className="text-neutral-600 mb-6">{error}</p>
-           <Button to="/dashboard" variant="primary">Ir para o Dashboard</Button>
-        </Card>
-      </div>
-    );
-  }
-
   if (!mainSaleDetails) {
-     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-100 p-4">
-        <Card className="w-full max-w-lg text-center shadow-2xl">
-           <h1 className="text-2xl font-bold text-neutral-800 mb-3">Pedido não encontrado</h1>
-           <Button to="/dashboard" variant="primary">Ir para o Dashboard</Button>
-        </Card>
-      </div>
-    );
+     return <div className="flex justify-center items-center h-screen"><p>Pedido não encontrado.</p></div>;
   }
-
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary-light via-primary to-primary-dark p-6">
-      <Card className="w-full max-w-lg text-center shadow-2xl">
-        <CheckCircleIcon className="h-20 w-20 text-green-500 mx-auto mb-6" />
-        <h1 className="text-3xl font-bold text-neutral-800 mb-3">Obrigado pela sua compra!</h1>
+    <div className="min-h-screen bg-gradient-to-br from-primary via-primary-light to-secondary-light flex flex-col items-center justify-center p-6 text-center">
+      <Card className="max-w-lg w-full shadow-2xl bg-white/95 backdrop-blur-sm">
+        <CheckCircleIcon className="h-20 w-20 text-green-500 mx-auto mb-5" />
+        <h1 className="text-3xl font-extrabold text-neutral-800 mb-3">Obrigado pela sua compra!</h1>
         <p className="text-neutral-600 mb-2">
-          Seu pedido <strong className="text-primary">#{mainSaleDetails.id.split('_').pop()}</strong> foi recebido.
+          Seu pedido <strong className="text-primary">#{mainSaleDetails.id.split('_').pop()}</strong> foi confirmado.
         </p>
-        <p className="text-neutral-600 mb-8">
-          Enviaremos um e-mail com os detalhes da sua compra e os próximos passos para {mainSaleDetails.customer.email} assim que o pagamento for confirmado.
+        <p className="text-neutral-600 mb-6">
+          Você receberá um e-mail em breve com os detalhes e acesso ao seu produto.
         </p>
         
-        {upsellSuccessMessage && (
-            <div className="my-4 p-3 bg-green-50 text-green-700 rounded-md shadow">
-                {upsellSuccessMessage}
+        <div className="my-6 p-4 bg-neutral-50 rounded-lg border border-neutral-200 text-left">
+            <h2 className="text-lg font-semibold text-neutral-700 mb-3">Resumo do Pedido:</h2>
+            {mainSaleDetails.products.map(item => (
+                <div key={item.productId} className="flex justify-between items-center py-1.5 border-b border-neutral-100 last:border-b-0">
+                    <span className="text-sm text-neutral-600">{item.name} (x{item.quantity})</span>
+                    <span className="text-sm font-medium text-neutral-700">{formatCurrency(item.priceInCents)}</span>
+                </div>
+            ))}
+             {mainSaleDetails.discountAppliedInCents && mainSaleDetails.discountAppliedInCents > 0 && (
+                <div className="flex justify-between items-center py-1.5 border-b border-neutral-100 text-sm">
+                    <span className="text-red-500">Desconto ({mainSaleDetails.couponCodeUsed}):</span>
+                    <span className="text-red-500 font-medium">-{formatCurrency(mainSaleDetails.discountAppliedInCents)}</span>
+                </div>
+            )}
+            <div className="flex justify-between items-center pt-2 mt-1">
+                <span className="text-md font-bold text-neutral-800">Total Pago:</span>
+                <span className="text-md font-bold text-primary">{formatCurrency(mainSaleDetails.totalAmountInCents)}</span>
             </div>
-        )}
-        
-        {Array.isArray(mainSaleDetails.products) && mainSaleDetails.products.some(p => p.deliveryUrl) && (
-          <div className="my-6 p-4 border-t border-b border-neutral-200">
-            <h2 className="text-xl font-semibold text-neutral-700 mb-3">Acesse seu(s) produto(s) (após confirmação):</h2>
-            <ul className="space-y-2">
-              {mainSaleDetails.products.filter(p => p.deliveryUrl).map((item: SaleProductItem) => (
-                <li key={item.productId + (item.isUpsell ? '_upsell':'')}>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => window.open(item.deliveryUrl, '_blank')}
-                  >
-                    Acessar {item.name} {item.isUpsell ? <span className="ml-1 text-xs bg-secondary/80 text-white px-1.5 py-0.5 rounded-full">ADICIONAL</span> : ''}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="mt-10 space-y-3">
-          <Button to="/dashboard" variant="primary" className="w-full sm:w-auto">
-            Ir para o Dashboard
-          </Button>
         </div>
-        <p className="mt-8 text-xs text-neutral-500">
-          Se tiver alguma dúvida, entre em contato com nosso suporte.
-        </p>
+
+        <Button onClick={() => navigate('/dashboard')} variant="primary" className="w-full sm:w-auto">
+          Ir para Meus Produtos
+        </Button>
+        <Link to="/" className="block mt-4 text-sm text-neutral-500 hover:text-primary hover:underline">
+          Voltar para o início
+        </Link>
       </Card>
-
+      
       {showUpsellModal && upsellOffer && upsellProductPrice !== null && (
-        <Modal isOpen={showUpsellModal} onClose={isProcessingUpsell ? () => {} : handleDeclineUpsell} title="Oferta Especial Para Você!">
-          {!upsellPixData && !upsellSuccessMessage && ( 
-            <>
-              <div className="text-center space-y-3">
-                {upsellOffer.imageUrl && <img src={upsellOffer.imageUrl} alt={upsellOffer.name} className="max-h-40 mx-auto mb-3 rounded" />}
-                <h3 className="text-xl font-bold text-primary">{upsellOffer.name}</h3>
-                <p className="text-neutral-600 text-sm">{upsellOffer.description}</p>
-                <p className="text-2xl font-extrabold text-secondary-dark">{formatCurrency(upsellProductPrice)}</p>
-              </div>
-              {upsellErrorMessage && <p className="text-sm text-red-500 my-3 p-2 bg-red-50 rounded">{upsellErrorMessage}</p>}
-              <div className="mt-6 flex flex-col sm:flex-row-reverse gap-3">
-                <Button onClick={handleAcceptUpsell} isLoading={isProcessingUpsell} disabled={isProcessingUpsell} variant="primary" className="w-full sm:ml-3">
-                  Sim, Quero Aproveitar!
-                </Button>
-                <Button onClick={handleDeclineUpsell} variant="ghost" className="w-full" disabled={isProcessingUpsell}>
-                  Não, Obrigado
-                </Button>
-              </div>
-            </>
-          )}
-
-          {upsellPixData && !upsellSuccessMessage && (
-             <div className="text-center space-y-4">
-                <h2 className="text-lg sm:text-xl font-semibold text-neutral-700">Pagamento da Oferta Adicional</h2>
-                <p className="text-sm text-neutral-600 px-2 sm:px-4">A funcionalidade de pagamento de upsell requer integração de backend.</p>
-                {upsellErrorMessage && <p className="text-sm text-red-500 mt-2">{upsellErrorMessage}</p>}
-            </div>
-          )}
+        <Modal isOpen={showUpsellModal} onClose={handleDeclineUpsell} title="Oferta Especial Para Você!" size="lg">
+            {!upsellPixData ? (
+                <>
+                    <h2 className="text-2xl font-bold text-primary mb-3">{upsellOffer.name}</h2>
+                    {upsellOffer.imageUrl && <img src={upsellOffer.imageUrl} alt={upsellOffer.name} className="rounded-lg mb-4 max-h-60 mx-auto shadow"/>}
+                    <p className="text-neutral-600 mb-4">{upsellOffer.description}</p>
+                    <p className="text-2xl font-extrabold text-neutral-800 mb-6">
+                        Apenas <span className="text-green-600">{formatCurrency(upsellProductPrice)}</span> adicionais!
+                    </p>
+                    {upsellErrorMessage && <p className="text-red-500 text-sm mb-3 p-2 bg-red-50 rounded">{upsellErrorMessage}</p>}
+                    <div className="flex flex-col sm:flex-row justify-center gap-3">
+                        <Button onClick={handleAcceptUpsell} variant="primary" size="lg" isLoading={isProcessingUpsell} className="flex-1">Sim, Eu Quero!</Button>
+                        <Button onClick={handleDeclineUpsell} variant="ghost" size="lg" className="flex-1">Não, obrigado.</Button>
+                    </div>
+                </>
+            ) : (
+                <div className="text-center">
+                    <h2 className="text-xl font-semibold text-neutral-700 mb-3">Pague o PIX para adicionar <span className="text-primary">{upsellOffer.name}</span>!</h2>
+                    <img src={upsellPixData.qr_code_base64} alt="Upsell PIX QR Code" className="mx-auto my-3 border rounded-lg shadow-sm max-w-[200px] w-full"/>
+                    <div className="my-3">
+                        <Input readOnly value={upsellPixData.qr_code} className="text-xs text-center" />
+                        <Button onClick={copyUpsellPixCode} className="mt-1 w-full !bg-primary !text-white" disabled={isProcessingUpsell}>
+                            {copySuccessUpsell ? "Copiado!" : "Copiar Código PIX"}
+                        </Button>
+                    </div>
+                    <p className="text-lg font-semibold text-primary">Total Upsell: {formatCurrency(upsellPixData.value)}</p>
+                    <p className="text-xs text-neutral-500 mt-3">Após o pagamento, o produto será adicionado ao seu pedido.</p>
+                    <Button onClick={handleDeclineUpsell} variant="ghost" className="mt-4">Fechar</Button>
+                </div>
+            )}
         </Modal>
       )}
+      <footer className="mt-10 text-center text-xs text-white/80">
+          <p>&copy; {new Date().getFullYear()} {originalProductDetails?.name || mainSaleDetails.products[0]?.name}. Todos os direitos reservados.</p>
+          <p>Uma experiência de checkout por <a href="https://1checkout.com.br" target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">1Checkout</a></p>
+      </footer>
     </div>
   );
 };

@@ -8,7 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { User } from '../../types';
 // import { apiClient } from '../../services/apiClient'; // Removido
 import { useAuth } from '../../contexts/AuthContext';
-import { UsersIcon, SUPER_ADMIN_EMAIL } from '../../constants'; 
+import { UsersIcon, SUPER_ADMIN_EMAIL } from '../../constants.tsx'; 
 
 export const SuperAdminUsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);

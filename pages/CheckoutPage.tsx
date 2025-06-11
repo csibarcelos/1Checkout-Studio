@@ -1,19 +1,20 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Product, PaymentStatus, Coupon, OrderBumpOffer, PushInPayPixResponseData, AppSettings, PlatformSettings, SaleProductItem, PaymentMethod, Sale } from '../types';
+import { Product, PaymentStatus, Coupon, OrderBumpOffer, PushInPayPixResponseData, PushInPayPixResponse, AppSettings, PlatformSettings, SaleProductItem, PaymentMethod, Sale } from '../types'; // Added PushInPayPixResponse
 import { productService } from '../services/productService';
 import { abandonedCartService, CreateAbandonedCartPayload } from '../services/abandonedCartService';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { CheckCircleIcon, PHONE_COUNTRY_CODES, DocumentDuplicateIcon, TagIcon, MOCK_WEBHOOK_URL, PLATFORM_NAME } from '../constants'; // Removed DEFAULT_CURRENCY as it's not used here
+import { CheckCircleIcon, PHONE_COUNTRY_CODES, DocumentDuplicateIcon, TagIcon, MOCK_WEBHOOK_URL, PLATFORM_NAME } from '../constants.tsx'; // MODIFICADO DE @/constants.tsx
 import { pushInPayService } from '../services/pushinPayService';
 import { settingsService } from '../services/settingsService';
 import { salesService } from '../services/salesService';
 import { utmifyService } from '../services/utmifyService';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../supabaseClient'; // Import supabase client
 
 const LockClosedIconSolid = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
@@ -55,14 +56,14 @@ export const CheckoutPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { accessToken: loggedInUserToken } = useAuth(); // Token do usuário logado (pode não ser o dono do produto)
+  const { accessToken: loggedInUserToken } = useAuth(); 
 
   const [product, setProduct] = useState<Product | null>(null);
   const [ownerAppSettings, setOwnerAppSettings] = useState<AppSettings | null>(null);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
 
-  const [isLoading, setIsLoading] = useState(true); // General page loading
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false); // For PIX generation/polling
+  const [isLoading, setIsLoading] = useState(true); 
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false); 
   const [error, setError] = useState<string | null>(null);
 
   const [customerName, setCustomerNameState] = useState('');
@@ -82,8 +83,8 @@ export const CheckoutPage: React.FC = () => {
   const [pixData, setPixData] = useState<PushInPayPixResponseData | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
-  const pollingTimeoutRef = useRef<number | null>(null); // Changed NodeJS.Timeout to number
-  const pollingIntervalRef = useRef<number | null>(null); // Changed NodeJS.Timeout to number
+  const pollingTimeoutRef = useRef<number | null>(null); 
+  const pollingIntervalRef = useRef<number | null>(null); 
 
 
   const abandonedCartIdRef = useRef<string | null>(null);
@@ -181,7 +182,7 @@ export const CheckoutPage: React.FC = () => {
                 setCtaTextColor(getContrastingTextColor(primaryColor));
                 document.documentElement.style.setProperty('--color-checkout-cta-text', getContrastingTextColor(primaryColor));
             } else { 
-                document.documentElement.style.setProperty('--color-checkout-primary', '#0D9488'); // Default teal
+                document.documentElement.style.setProperty('--color-checkout-primary', '#0D9488'); 
                 setCtaTextColor(getContrastingTextColor('#0D9488'));
                 document.documentElement.style.setProperty('--color-checkout-cta-text', getContrastingTextColor('#0D9488'));
             }
@@ -256,22 +257,19 @@ export const CheckoutPage: React.FC = () => {
 
     try {
       if (abandonedCartIdRef.current) {
-        // Update existing cart - can proceed even if email is empty if other fields are being updated
         await abandonedCartService.updateAbandonedCartAttempt(abandonedCartIdRef.current, payload);
         console.log('[DEBUG saveOrUpdateAbandonedCart] Cart updated:', abandonedCartIdRef.current);
       } else if (payload.customerEmail && payload.customerEmail.trim()) {
-        // Create new cart ONLY if email is present
         const newCart = await abandonedCartService.createAbandonedCartAttempt(payload);
         abandonedCartIdRef.current = newCart.id;
         console.log('[DEBUG saveOrUpdateAbandonedCart] Cart created:', newCart.id);
       } else {
-        // Do not attempt to create a new cart if email is missing
         console.warn('[DEBUG saveOrUpdateAbandonedCart] Not creating new cart: Email is required. isFinalAttempt:', isFinalAttempt);
       }
     } catch (cartError) {
       console.error("[DEBUG saveOrUpdateAbandonedCart] Failed to save/update abandoned cart:", cartError);
       if (abandonedCartIdRef.current && (cartError as any).message?.includes("not found")) {
-        abandonedCartIdRef.current = null; // Reset if update failed due to not found
+        abandonedCartIdRef.current = null; 
       }
     }
   }, [product, customerEmail, customerName, rawWhatsappNumber, customerWhatsappCountryCode, finalPrice, getTrackingParams, pixData]);
@@ -292,16 +290,15 @@ export const CheckoutPage: React.FC = () => {
     pollingTimeoutRef.current = null;
   };
 
-  // PIX Status Polling Logic
   useEffect(() => {
-    if (pixData && paymentStatus === PaymentStatus.WAITING_PAYMENT && product && ownerAppSettings?.apiTokens.pushinPayEnabled && ownerAppSettings.apiTokens.pushinPay) {
+    if (pixData && paymentStatus === PaymentStatus.WAITING_PAYMENT && product && ownerAppSettings) {
       setIsProcessingPayment(true); 
-      
       clearPolling(); 
 
-      pollingIntervalRef.current = window.setInterval(async () => { // Use window.setInterval
+      pollingIntervalRef.current = window.setInterval(async () => { 
         try {
-          const statusResponse = await pushInPayService.checkPaymentStatus(pixData.id, ownerAppSettings.apiTokens.pushinPay!, ownerAppSettings.apiTokens.pushinPayEnabled!);
+          // A Edge Function usaria o product.platformUserId para buscar o token e a flag de enabled com segurança.
+          const statusResponse = await pushInPayService.checkPaymentStatus(pixData.id, product.platformUserId);
           if (statusResponse.success && statusResponse.data?.status === PaymentStatus.PAID) {
             setPaymentStatus(PaymentStatus.PAID);
             clearPolling();
@@ -380,7 +377,7 @@ export const CheckoutPage: React.FC = () => {
         }
       }, POLLING_INTERVAL);
 
-      pollingTimeoutRef.current = window.setTimeout(() => { // Use window.setTimeout
+      pollingTimeoutRef.current = window.setTimeout(() => { 
         clearPolling();
         if (paymentStatus === PaymentStatus.WAITING_PAYMENT) { 
             setError("Tempo limite para pagamento PIX esgotado. Por favor, tente gerar um novo PIX.");
@@ -406,13 +403,11 @@ export const CheckoutPage: React.FC = () => {
 
     if (!ownerAppSettings || !platformSettings) { setError('Configurações de pagamento não carregadas. Tente recarregar.'); return;}
     
-    const pushInPayToken = ownerAppSettings.apiTokens?.pushinPay;
     const pushInPayIsEnabled = ownerAppSettings.apiTokens?.pushinPayEnabled;
 
-    console.log("[CheckoutPage] handleSubmit - PushInPay Token (length):", pushInPayToken ? pushInPayToken.length : 'N/A');
     console.log("[CheckoutPage] handleSubmit - PushInPay Enabled:", pushInPayIsEnabled);
 
-    if (!pushInPayIsEnabled || !pushInPayToken) {
+    if (!pushInPayIsEnabled) { 
         setError('Pagamento via PIX (PushInPay) não está habilitado ou configurado para este vendedor.');
         return;
     }
@@ -437,33 +432,57 @@ export const CheckoutPage: React.FC = () => {
         });
     }
 
+    // NOVO BLOCO try/catch PARA A FUNÇÃO handleSubmit EM pages/CheckoutPage.tsx
+
+try {
     const pixPayload = {
-        value: finalPrice, originalValueBeforeDiscount: originalPriceBeforeDiscount,
-        webhook_url: MOCK_WEBHOOK_URL,
-        customerName: customerName, customerEmail: customerEmail, customerWhatsapp: `${customerWhatsappCountryCode}${rawWhatsappNumber}`,
-        products: saleProducts, trackingParameters: getTrackingParams(),
-        couponCodeUsed: appliedCoupon?.code, discountAppliedInCents: discountApplied
+        value: finalPrice,
+        originalValueBeforeDiscount: originalPriceBeforeDiscount,
+        webhook_url: MOCK_WEBHOOK_URL, // Lembre-se que este é um mock
+        customerName: customerName,
+        customerEmail: customerEmail,
+        customerWhatsapp: `${customerWhatsappCountryCode}${rawWhatsappNumber}`,
+        products: saleProducts,
+        trackingParameters: getTrackingParams(),
+        couponCodeUsed: appliedCoupon?.code,
+        discountAppliedInCents: discountApplied
     };
     
-    try {
-        const pixResponse = await pushInPayService.generatePixCharge(pixPayload, pushInPayToken, pushInPayIsEnabled);
-        if (pixResponse.success && pixResponse.data) {
-            setPixData(pixResponse.data);
-            setPaymentStatus(pixResponse.data.status);
-        } else {
-            throw new Error(pixResponse.message || "Falha ao gerar PIX.");
+    // **A MUDANÇA PRINCIPAL ESTÁ AQUI**
+    // Chamando a Edge Function 'gerar-pix' com o payload e o ID do dono do produto
+    const { data: pixFunctionResponse, error: functionError } = await supabase.functions.invoke<PushInPayPixResponse>('gerar-pix', {
+        body: {
+            payload: pixPayload,
+            productOwnerUserId: product.platformUserId
         }
-    } catch (paymentError: any) {
-        console.error("Error generating PIX:", paymentError);
-        setError(paymentError.message || "Ocorreu um erro ao gerar o PIX. Tente novamente.");
-        setPixData(null);
-        setPaymentStatus(null);
-    } 
+    });
+
+    // Tratamento do erro que pode vir da Edge Function
+    if (functionError) {
+        throw new Error(functionError.message);
+    }
+
+    // Tratamento da resposta da Edge Function
+    if (pixFunctionResponse && pixFunctionResponse.success && pixFunctionResponse.data) {
+        setPixData(pixFunctionResponse.data);
+        setPaymentStatus(pixFunctionResponse.data.status);
+    } else {
+        // Lança um erro se a resposta da função, mesmo com sucesso, não tiver os dados esperados
+        throw new Error(pixFunctionResponse?.message || "Falha ao gerar PIX na resposta da função.");
+    }
+
+} catch (paymentError: any) {
+    console.error("Erro ao invocar a função gerar-pix:", paymentError);
+    setError(paymentError.message || "Ocorreu um erro ao gerar o PIX. Tente novamente.");
+    setPixData(null);
+    setPaymentStatus(null);
+    setIsProcessingPayment(false); // Garante que o botão de pagamento seja reabilitado em caso de erro
+}
   };
 
   const copyPixCode = () => { if (pixData?.qr_code) navigator.clipboard.writeText(pixData.qr_code).then(() => { setCopySuccess(true); setTimeout(() => setCopySuccess(false), 2000); }); };
   const [countdown, setCountdown] = useState<string | null>(null);
-  const countdownIntervalRef = useRef<number | undefined>(undefined); // Use number for browser timer ID
+  const countdownIntervalRef = useRef<number | undefined>(undefined); 
   useEffect(() => { 
     if (product?.checkoutCustomization?.countdownTimer?.enabled && product.checkoutCustomization.countdownTimer.durationMinutes && !pixData) {
       const timerKey = `countdownEndTime_${product.id}_${slug}`;
@@ -486,7 +505,7 @@ export const CheckoutPage: React.FC = () => {
         setCountdown(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
       };
       updateCountdown();
-      countdownIntervalRef.current = window.setInterval(updateCountdown, 1000); // Use window.setInterval
+      countdownIntervalRef.current = window.setInterval(updateCountdown, 1000); 
     } else if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
       setCountdown(null);

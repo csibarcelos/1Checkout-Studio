@@ -2,7 +2,7 @@
 import React, { Fragment } from 'react';
 import { NavLink, useNavigate } from "react-router-dom";
 import { Dialog, Transition } from '@headlessui/react';
-import { NAV_ITEMS, NAV_ITEMS_SUPER_ADMIN, AppLogoIcon, LogoutIcon, XMarkIcon } from '../../constants'; 
+import { NAV_ITEMS, NAV_ITEMS_SUPER_ADMIN, AppLogoIcon, LogoutIcon, XMarkIcon, AdjustmentsHorizontalIconReact, ShieldCheckIconReact, UserGroupIcon, BanknotesIconReact, TableCellsIconReact, ChartPieIcon } from '../../constants.tsx'; // MODIFICADO DE @/constants.tsx
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
 import { NavItemConfig } from '../../types';
@@ -21,7 +21,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
     navigate('/auth');
   };
 
-  const currentNavItems = isSuperAdmin ? NAV_ITEMS_SUPER_ADMIN : NAV_ITEMS;
+  const currentNavItems = isSuperAdmin ? NAV_ITEMS_SUPER_ADMIN.map(item => {
+    // This mapping is technically redundant if NAV_ITEMS_SUPER_ADMIN directly uses the correct icons,
+    // but kept for explicitness or if NAV_ITEMS_SUPER_ADMIN definition changes.
+    // The key fix was ensuring the import brings the correct suffixed components into scope.
+    if (item.name === 'Config. Plataforma') {
+      return { ...item, icon: AdjustmentsHorizontalIconReact };
+    }
+    if (item.name === 'Dashboard Admin') {
+      return { ...item, icon: ShieldCheckIconReact };
+    }
+     if (item.name === 'Todos Usuários') {
+      return { ...item, icon: UserGroupIcon };
+    }
+    if (item.name === 'Todas Vendas') {
+      return { ...item, icon: BanknotesIconReact };
+    }
+     if (item.name === 'Log de Auditoria') {
+      return { ...item, icon: TableCellsIconReact };
+    }
+    if (item.name === 'Todos os Produtos') {
+      return { ...item, icon: ChartPieIcon };
+    }
+    return item;
+  }) : NAV_ITEMS;
+  
   const dashboardPath = isSuperAdmin ? "/superadmin/dashboard" : "/dashboard";
 
   const navigationContent = (
@@ -56,17 +80,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                 {iconIsActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-md"></div>}
                 <item.icon className={`mr-3 ml-1 flex-shrink-0 h-5 w-5 ${iconIsActive ? 'text-primary' : 'text-neutral-400 group-hover:text-neutral-300'}`} aria-hidden="true" />
                 {item.name}
-                {item.soon && <span className="ml-auto text-xs bg-neutral-600 text-neutral-200 px-1.5 py-0.5 rounded-full">EM BREVE</span>}
+                {item.soon && <span className="ml-auto text-xs bg-neutral-600 text-neutral-200 px-2 py-0.5 rounded-full">EM BREVE</span>}
               </>
             )}
           </NavLink>
         ))}
       </nav>
       <div className="mt-auto p-4 border-t border-neutral-700">
+        <div className="flex items-center mb-3">
+          <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-neutral-900 font-semibold text-lg">
+            {user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || '?'}
+          </div>
+          <div className="ml-3">
+            <p className="text-sm font-medium text-neutral-100 truncate">{user?.name || 'Usuário'}</p>
+            <p className="text-xs text-neutral-400 truncate">{user?.email}</p>
+          </div>
+        </div>
         <Button 
-          variant="ghost" 
+          variant="outline" 
           onClick={handleLogout} 
-          className="w-full text-neutral-300 hover:bg-neutral-700 hover:text-neutral-100"
+          className="w-full"
           leftIcon={<LogoutIcon className="h-5 w-5"/>}
         >
           Sair
@@ -77,18 +110,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
 
   return (
     <>
-      {/* Static sidebar for desktop */}
-      <div className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64">
-          <div className="flex flex-col h-0 flex-1 bg-neutral-800"> 
-            {navigationContent}
-          </div>
-        </div>
-      </div>
-
       {/* Mobile sidebar */}
       <Transition.Root show={sidebarOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-40 md:hidden" onClose={() => setSidebarOpen(false)}>
+        <Dialog as="div" className="relative z-40 md:hidden" onClose={setSidebarOpen}>
           <Transition.Child
             as={Fragment}
             enter="transition-opacity ease-linear duration-300"
@@ -101,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
             <div className="fixed inset-0 bg-neutral-900/80" />
           </Transition.Child>
 
-          <div className="fixed inset-0 flex z-40">
+          <div className="fixed inset-0 flex">
             <Transition.Child
               as={Fragment}
               enter="transition ease-in-out duration-300 transform"
@@ -111,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
               leaveFrom="translate-x-0"
               leaveTo="-translate-x-full"
             >
-              <Dialog.Panel className="relative flex-1 flex flex-col max-w-xs w-full bg-neutral-800">
+              <Dialog.Panel className="relative flex w-full max-w-xs flex-1 flex-col bg-neutral-800">
                 <Transition.Child
                   as={Fragment}
                   enter="ease-in-out duration-300"
@@ -124,7 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                   <div className="absolute top-0 right-0 -mr-12 pt-2">
                     <button
                       type="button"
-                      className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                      className="ml-1 flex h-10 w-10 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
                       onClick={() => setSidebarOpen(false)}
                     >
                       <span className="sr-only">Fechar sidebar</span>
@@ -135,12 +159,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
                 {navigationContent}
               </Dialog.Panel>
             </Transition.Child>
-            <div className="flex-shrink-0 w-14" aria-hidden="true">
-              {/* Dummy element to force sidebar to shrink to fit close icon */}
-            </div>
+            <div className="w-14 flex-shrink-0" aria-hidden="true" /> {/* Dummy element to force sidebar to shrink to fit close icon */}
           </div>
         </Dialog>
       </Transition.Root>
+
+      {/* Static sidebar for desktop */}
+      <div className="hidden md:flex md:flex-shrink-0">
+        <div className="flex flex-col w-64 bg-neutral-800 border-r border-neutral-700">
+          {navigationContent}
+        </div>
+      </div>
     </>
   );
 };

@@ -1,7 +1,7 @@
 
 import React, { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '../../constants'; // Ensure path is correct based on project structure
+import { XMarkIcon } from '../../constants.tsx'; // MODIFICADO DE @/constants.tsx
 
 interface ModalProps {
   isOpen: boolean;

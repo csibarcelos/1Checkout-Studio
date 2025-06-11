@@ -8,7 +8,7 @@ import { Input, Textarea } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 // Removed Modal import
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { COLOR_PALETTE_OPTIONS, TrashIcon, PlusIcon } from '../constants'; // Removed editor icons
+import { COLOR_PALETTE_OPTIONS, TrashIcon, PlusIcon } from '../constants.tsx'; // MODIFICADO DE @/constants.tsx // Removed editor icons
 import { useAuth } from '../contexts/AuthContext';
 import { MiniEditor } from '../components/shared/MiniEditor'; // Import shared MiniEditor
 import { CouponFormModal } from '../components/shared/CouponFormModal'; // Import shared CouponFormModal
@@ -29,6 +29,7 @@ export const ProductEditPage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState(''); 
   const [deliveryUrl, setDeliveryUrl] = useState('');
   const [checkoutCustomization, setCheckoutCustomization] = useState<ProductCheckoutCustomization>({
+     primaryColor: COLOR_PALETTE_OPTIONS[0].value, // Ensure primaryColor has a default
      guaranteeBadges: [],
      salesCopy: '',
      countdownTimer: { enabled: false, durationMinutes: 15, messageBefore: '', messageAfter: '', backgroundColor: '#EF4444', textColor: '#FFFFFF' }
@@ -72,7 +73,7 @@ export const ProductEditPage: React.FC = () => {
         setImageUrl(fetchedProduct.imageUrl || ''); 
         setDeliveryUrl(fetchedProduct.deliveryUrl || '');
         setCheckoutCustomization({ // Ensure countdownTimer exists with defaults
-            ...(fetchedProduct.checkoutCustomization || {}), // Spread existing customization
+            ...(fetchedProduct.checkoutCustomization || { primaryColor: COLOR_PALETTE_OPTIONS[0].value }), // Default primaryColor if customization is null
             countdownTimer: fetchedProduct.checkoutCustomization?.countdownTimer || {
                 enabled: false, durationMinutes: 15, messageBefore: '', messageAfter: '', backgroundColor: '#EF4444', textColor: '#FFFFFF'
             }
@@ -271,38 +272,45 @@ export const ProductEditPage: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-neutral-300">Cor Principal</label>
                   <div className="grid grid-cols-5 gap-2 mt-1">
-                    {COLOR_PALETTE_OPTIONS.map(c => (<button key={c.value} type="button" title={c.name} onClick={() => handleCustomizationChange('primaryColor', c.value)} className={`h-8 w-full rounded border-2 ${checkoutCustomization.primaryColor === c.value ? 'ring-2 ring-offset-1 ring-neutral-900 border-neutral-900' : 'border-transparent hover:border-neutral-600'}`} style={{ backgroundColor: c.value }}/> ))}
+                    {COLOR_PALETTE_OPTIONS.map(color => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        title={color.name}
+                        onClick={() => handleCustomizationChange('primaryColor', color.value)}
+                        className={`h-8 w-full rounded border-2 ${checkoutCustomization.primaryColor === color.value ? 'ring-2 ring-offset-1 ring-neutral-900 border-neutral-900' : 'border-transparent hover:border-neutral-600'}`}
+                        style={{ backgroundColor: color.value }}
+                        disabled={isSaving}
+                      />
+                    ))}
                   </div>
-                  <Input type="color" value={checkoutCustomization.primaryColor || '#000000'} onChange={(e) => handleCustomizationChange('primaryColor', e.target.value)} className="mt-2 h-10"/>
+                  <Input name="customColor" type="color" value={checkoutCustomization.primaryColor || COLOR_PALETTE_OPTIONS[0].value} onChange={(e) => handleCustomizationChange('primaryColor', e.target.value)} className="mt-2 h-10"/>
                 </div>
-                <Input label="URL do Logo Pequeno (Checkout)" value={checkoutCustomization.logoUrl || ''} onChange={(e) => handleCustomizationChange('logoUrl', e.target.value)}/>
-                <Input label="URL Vídeo (YouTube Embed)" value={checkoutCustomization.videoUrl || ''} onChange={(e) => handleCustomizationChange('videoUrl', e.target.value)}/>
-                <div><label className="block text-sm font-medium text-neutral-300">Copy de Vendas</label><MiniEditor value={checkoutCustomization.salesCopy || ''} onChange={handleSalesCopyChange} /></div>
+                <Input label="URL do Logo Pequeno (Checkout)" name="logoUrl" value={checkoutCustomization.logoUrl || ''} onChange={(e) => handleCustomizationChange('logoUrl', e.target.value)} placeholder="https://exemplo.com/logo.png"/>
+                <Input label="URL do Vídeo (YouTube Embed)" name="videoUrl" value={checkoutCustomization.videoUrl || ''} onChange={(e) => handleCustomizationChange('videoUrl', e.target.value)} placeholder="https://youtube.com/embed/..."/>
                 <div>
-                  <h4 className="text-sm font-medium text-neutral-300">Selos de Garantia</h4>
-                  {(checkoutCustomization.guaranteeBadges || []).map((b, i) => (<Card key={b.id} className="mb-3 p-3 bg-neutral-700/50 border-neutral-600"><Input label={`URL Imagem ${i+1}`} value={b.imageUrl} onChange={e => updateGuaranteeBadge(b.id,'imageUrl',e.target.value)} className="mb-2"/><Input label={`Texto Alt ${i+1}`} value={b.altText} onChange={e => updateGuaranteeBadge(b.id,'altText',e.target.value)} className="mb-2"/><Button type="button" variant="danger" size="sm" onClick={()=>removeGuaranteeBadge(b.id)}>Remover</Button></Card>))}
-                  <Button type="button" variant="secondary" size="sm" onClick={addGuaranteeBadge} leftIcon={<PlusIcon className="h-4 w-4"/>}>Adicionar Selo</Button>
+                    <label className="block text-sm font-medium text-neutral-300 mb-1">Copy de Vendas</label>
+                    <MiniEditor value={checkoutCustomization.salesCopy || ''} onChange={handleSalesCopyChange} placeholder="Sua copy persuasiva..."/>
                 </div>
-                 <div className="pt-4 border-t border-neutral-700">
+                <div>
+                  <h4 className="text-sm font-medium text-neutral-300 mb-2">Selos de Garantia</h4>
+                  {(checkoutCustomization.guaranteeBadges || []).map((badge, index) => (
+                    <Card key={badge.id} className="mb-3 p-3 bg-neutral-700/50 border-neutral-600">
+                        <Input label={`URL Imagem Selo ${index + 1}`} value={badge.imageUrl} onChange={(e) => updateGuaranteeBadge(badge.id, 'imageUrl', e.target.value)} placeholder="https://exemplo.com/selo.png" className="mb-2"/>
+                        <Input label={`Texto Alt Selo ${index + 1}`} value={badge.altText} onChange={(e) => updateGuaranteeBadge(badge.id, 'altText', e.target.value)} placeholder="Descrição do selo" className="mb-2"/>
+                        <Button type="button" variant="danger" size="sm" onClick={() => removeGuaranteeBadge(badge.id)}>Remover</Button>
+                    </Card>
+                  ))} 
+                  <Button type="button" variant="secondary" size="sm" onClick={addGuaranteeBadge} leftIcon={<PlusIcon className="h-4 w-4" />}>Adicionar Selo</Button>
+                </div>
+                <div className="pt-4 border-t border-neutral-700">
                   <h4 className="text-md font-semibold text-neutral-100 mb-3">Cronômetro de Escassez</h4>
-                  <ToggleSwitch
-                    label="Habilitar Cronômetro"
-                    enabled={checkoutCustomization.countdownTimer?.enabled || false}
-                    onChange={(isEnabled) => handleCountdownTimerChange('enabled', isEnabled)}
-                  />
+                  <ToggleSwitch label="Habilitar Cronômetro" enabled={checkoutCustomization.countdownTimer?.enabled || false} onChange={(isEnabled) => handleCountdownTimerChange('enabled', isEnabled)}/>
                   {checkoutCustomization.countdownTimer?.enabled && (
                     <div className="space-y-3 mt-3 pl-2 border-l-2 border-neutral-600">
-                       <div>
-                        <label htmlFor="countdownDuration" className="block text-sm font-medium text-neutral-300 mb-1">Duração do Cronômetro</label>
-                        <select
-                          id="countdownDuration"
-                          value={checkoutCustomization.countdownTimer.durationMinutes || 15}
-                          onChange={(e) => handleCountdownTimerChange('durationMinutes', parseInt(e.target.value))}
-                          className="mt-1 block w-full p-2.5 border rounded-md shadow-sm focus:outline-none sm:text-sm transition-colors duration-150 bg-neutral-800 border-neutral-600 focus:border-primary focus:ring-2 focus:ring-primary/70 text-neutral-100 placeholder-neutral-400"
-                        >
-                          {countdownDurations.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
+                       <div><label htmlFor="countdownDuration" className="block text-sm font-medium text-neutral-300 mb-1">Duração do Cronômetro</label>
+                        <select id="countdownDuration" value={checkoutCustomization.countdownTimer.durationMinutes || 15} onChange={(e) => handleCountdownTimerChange('durationMinutes', parseInt(e.target.value))} className="mt-1 block w-full p-2.5 border rounded-md shadow-sm focus:outline-none sm:text-sm transition-colors duration-150 bg-neutral-800 border-neutral-600 focus:border-primary focus:ring-2 focus:ring-primary/70 text-neutral-100 placeholder-neutral-400">
+                          {countdownDurations.map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
                         </select>
                       </div>
                       <Textarea label="Mensagem Antes do Cronômetro (Opcional)" value={checkoutCustomization.countdownTimer.messageBefore || ''} onChange={(e) => handleCountdownTimerChange('messageBefore', e.target.value)} rows={2}/>
@@ -316,22 +324,40 @@ export const ProductEditPage: React.FC = () => {
                 </div>
               </div>
             </Card>
-            <Card title="Cupons de Desconto">
+             <Card title="Cupons de Desconto">
               <div className="space-y-3">
-                {coupons.map(c => (<div key={c.id} className="p-3 border border-neutral-700 rounded-md bg-neutral-700/50 flex justify-between items-center"><p className="font-semibold text-primary">{c.code}</p><div className="space-x-1"><Button type="button" variant="ghost" size="sm" onClick={()=>openCouponModal(c)}>Editar</Button><Button type="button" variant="ghost" size="sm" onClick={()=>deleteCoupon(c.id)} className="text-red-400"><TrashIcon className="h-4 w-4"/></Button></div></div>))}
-                {coupons.length === 0 && <p className="text-sm text-neutral-400">Nenhum cupom.</p>}
-                <Button type="button" variant="secondary" onClick={()=>openCouponModal()} leftIcon={<PlusIcon className="h-5 w-5"/>} className="w-full">Adicionar</Button>
+                {coupons.length === 0 && <p className="text-sm text-neutral-400">Nenhum cupom adicionado.</p>}
+                {coupons.map(coupon => (
+                  <div key={coupon.id} className="p-3 border border-neutral-700 rounded-md bg-neutral-700/50 flex justify-between items-center">
+                    <div><p className="font-semibold text-primary">{coupon.code}</p>
+                      <p className="text-xs text-neutral-300">
+                        {coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : `R$ ${(coupon.discountValue/100).toFixed(2)} OFF`}
+                        {coupon.isAutomatic && <span className="ml-1 text-green-400">(Automático)</span>}
+                      </p>
+                    </div>
+                    <div className="space-x-1">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => openCouponModal(coupon)}>Editar</Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => deleteCoupon(coupon.id)} className="text-red-400"><TrashIcon className="h-4 w-4"/></Button>
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" variant="secondary" onClick={() => openCouponModal()} leftIcon={<PlusIcon className="h-5 w-5"/>} className="w-full">Adicionar Cupom</Button>
               </div>
             </Card>
           </div>
         </div>
+
         {error && <p className="mt-6 text-sm text-red-400 text-center p-3 bg-red-800/20 rounded-md border border-red-600/50">{error}</p>}
+
         <div className="mt-8 flex justify-end space-x-3">
           <Button type="button" variant="ghost" onClick={() => navigate('/produtos')} disabled={isSaving}>Cancelar</Button>
           <Button type="submit" variant="primary" isLoading={isSaving} size="lg">Salvar Alterações</Button>
         </div>
       </form>
-      {isCouponModalOpen && <CouponFormModal isOpen={isCouponModalOpen} onClose={closeCouponModal} onSave={saveCoupon} existingCoupon={editingCoupon} />}
+      
+      {isCouponModalOpen && 
+        <CouponFormModal isOpen={isCouponModalOpen} onClose={closeCouponModal} onSave={saveCoupon} existingCoupon={editingCoupon}/>
+      }
     </div>
   );
 };
