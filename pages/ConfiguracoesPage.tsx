@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { settingsService } from '../services/settingsService';
 import { AppSettings } from '../types';
-import { CogIcon, COLOR_PALETTE_OPTIONS, CheckCircleIcon, InformationCircleIcon } from '../constants'; 
+import { CogIcon, COLOR_PALETTE_OPTIONS, CheckCircleIcon, InformationCircleIcon } from '@/constants.tsx'; 
 import { useAuth } from '../contexts/AuthContext';
 
 const initialAppSettings: AppSettings = {

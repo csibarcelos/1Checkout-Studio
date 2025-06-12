@@ -6,7 +6,7 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { settingsService } from '../../services/settingsService';
 import { PlatformSettings } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { CogIcon, CurrencyDollarIcon, KeyIcon } from '../../constants'; 
+import { CogIcon, CurrencyDollarIcon, KeyIcon } from '@/constants.tsx'; 
 
 export const PlatformSettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<PlatformSettings | null>(null);

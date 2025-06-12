@@ -8,14 +8,14 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { CheckCircleIcon, PHONE_COUNTRY_CODES, DocumentDuplicateIcon, TagIcon, MOCK_WEBHOOK_URL, PLATFORM_NAME } from '@/constants.tsx'; 
+import { CheckCircleIcon, PHONE_COUNTRY_CODES, DocumentDuplicateIcon, TagIcon, MOCK_WEBHOOK_URL, PLATFORM_NAME } from '../constants'; 
 import { pushinPayService } from '../services/pushinPayService';
 import { settingsService } from '../services/settingsService';
 import { salesService } from '../services/salesService';
 import { utmifyService } from '../services/utmifyService';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient'; 
-import { worldTimeApiService } from '../services/worldTimeApiService';
+// import { worldTimeApiService } from '../services/worldTimeApiService'; // Chamada removida
 
 
 const LockClosedIconSolid: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -407,7 +407,7 @@ export const CheckoutPage: React.FC = () => {
   const abandonedCartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [ipAddress, setIpAddress] = useState<string | null>(null);
+  // const [ipAddress, setIpAddress] = useState<string | null>(null); // IP Address state removed
   const [currentProductsForSale, setCurrentProductsForSale] = useState<SaleProductItem[]>([]); // Added state
 
   const { accessToken } = useAuth(); 
@@ -473,8 +473,9 @@ export const CheckoutPage: React.FC = () => {
             }
         }
         
-        const timeInfo = await worldTimeApiService.getWorldTimeInfo();
-        setIpAddress(timeInfo.clientIp);
+        // Chamada para worldTimeApiService removida
+        // const timeInfo = await worldTimeApiService.getWorldTimeInfo();
+        // setIpAddress(timeInfo.clientIp); // Atribuição do IP removida
 
       } catch (err: any) {
         setError(err.message || "Falha ao carregar informações do produto ou configurações.");
@@ -748,7 +749,7 @@ export const CheckoutPage: React.FC = () => {
                 platformUserId: product.platformUserId,
                 pushInPayTransactionId: transactionId,
                 products: currentProductsForSale, // Use state variable
-                customer: { name: customerName, email: customerEmail, ip: ipAddress || undefined, whatsapp: customerWhatsappCountryCode + rawWhatsappNumber.replace(/\D/g, '') },
+                customer: { name: customerName, email: customerEmail, /* ip: ipAddress || undefined, */ whatsapp: customerWhatsappCountryCode + rawWhatsappNumber.replace(/\D/g, '') },
                 paymentMethod: PaymentMethod.PIX,
                 status: PaymentStatus.PAID,
                 totalAmountInCents: finalPrice ?? 0,

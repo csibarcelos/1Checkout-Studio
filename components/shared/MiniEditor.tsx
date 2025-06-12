@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { BoldIcon, ItalicIcon, UnderlineIcon, ListOrderedIcon, ListUnorderedIcon } from '../../constants'; 
+import { BoldIcon, ItalicIcon, UnderlineIcon, ListOrderedIcon, ListUnorderedIcon } from '@/constants.tsx'; 
 
 export interface MiniEditorProps {
   value: string;

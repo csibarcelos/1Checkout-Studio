@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -8,7 +7,7 @@ import { Modal } from '../components/ui/Modal';
 import { Customer, FunnelStage, Product as ProductType } from '../types';
 import { customerService } from '../services/customerService';
 import { productService } from '../services/productService'; 
-import { UsersIcon, WhatsAppIcon, generateWhatsAppLink } from '@/constants';
+import { UsersIcon, WhatsAppIcon, generateWhatsAppLink } from '@/constants.tsx';
 import { useAuth } from '../contexts/AuthContext'; 
 
 

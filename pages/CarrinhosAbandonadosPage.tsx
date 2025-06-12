@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -7,7 +6,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { Modal } from '../components/ui/Modal';
 import { AbandonedCart, AbandonedCartStatus } from '../types';
 import { abandonedCartService } from '../services/abandonedCartService';
-import { ArchiveBoxXMarkIcon, WhatsAppIcon, generateWhatsAppLink } from '../constants';
+import { ArchiveBoxXMarkIcon, WhatsAppIcon, generateWhatsAppLink } from '@/constants.tsx';
 import { useAuth } from '../contexts/AuthContext';
 
 const getStatusLabel = (status: AbandonedCartStatus) => {

@@ -1,7 +1,7 @@
 import { Sale, SaleProductItem, PaymentMethod, PaymentStatus, PlatformSettings } from '../types'; 
 import { supabase, getSupabaseUserId } from '../supabaseClient'; // Updated import
 import { Database, Json } from '../types/supabase';
-import { DEFAULT_CURRENCY } from '../constants'; 
+import { DEFAULT_CURRENCY } from '@/constants.tsx'; 
 
 type SaleRow = Database['public']['Tables']['sales']['Row'];
 type SaleInsert = Database['public']['Tables']['sales']['Insert'];
