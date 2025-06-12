@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     const { data: settings, error: settingsError } = await adminClient
       .from('app_settings')
       .select('api_tokens')
-      .eq('user_id', productOwnerUserId)
+      .eq('platform_user_id', productOwnerUserId)
       .single()
 
     if (settingsError || !settings) {
