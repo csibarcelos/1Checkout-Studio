@@ -4,7 +4,6 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { Database } from '../_shared/db_types.ts'
 
-// Interface para o payload que o frontend envia
 interface RequestBody {
   payload: any;
   productOwnerUserId: string;
@@ -27,26 +26,25 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // 1. Busca as configurações do vendedor (dono do produto)
+    // 1. Busca as configurações do vendedor de forma segura
     const { data: settings, error: settingsError } = await adminClient
       .from('app_settings')
       .select('api_tokens')
       .eq('platform_user_id', productOwnerUserId)
       .single()
 
-    if (settingsError || !settings) {
-      throw new Error(`Configurações de API não encontradas para o vendedor.`)
-    }
+    if (settingsError) throw new Error(`Erro ao buscar configurações do vendedor: ${settingsError.message}`);
+    if (!settings) throw new Error(`Configurações de API não encontradas para o vendedor.`);
 
     const apiTokens = settings.api_tokens as any;
     const pushinPayToken = apiTokens?.pushinPay;
     const isPushinPayEnabled = apiTokens?.pushinPayEnabled;
-
+    
     if (!isPushinPayEnabled || !pushinPayToken) {
-      throw new Error('Pagamento via PIX (PushInPay) não está habilitado ou configurado para este vendedor.');
+      throw new Error('O pagamento via PIX (PushInPay) não está habilitado ou configurado para este vendedor.');
     }
     
-    // 2. Monta e executa a chamada REAL para a API da PushInPay
+    // 2. Chama a API REAL da PushInPay
     console.log("Edge Function: Chamando a API REAL da PushInPay...");
     const pushinPayResponse = await fetch('https://api.pushinpay.com.br/api/pix/cashIn', {
         method: 'POST',
@@ -62,31 +60,29 @@ Deno.serve(async (req) => {
     });
 
     const pushinPayData = await pushinPayResponse.json();
-
     if (!pushinPayResponse.ok) {
-        // Se a API da PushInPay deu erro, lança o erro para o frontend
         throw new Error(pushinPayData.message || 'Erro na comunicação com o gateway de pagamento.');
     }
+    
+    // 3. TODO: Adicionar a lógica de envio para UTMify aqui no futuro
 
-    // 3. TODO: Disparar evento de "venda pendente" para a UTMify aqui
-    // A lógica para chamar a UTMify seria adicionada aqui, usando o pushinPayData.data.id
+    // 4. Monta e retorna a resposta de SUCESSO para o frontend
+    const finalResponse = {
+        success: true,
+        data: pushinPayData.data,
+        message: "PIX gerado com sucesso."
+    };
 
-    // 4. Retorna a resposta segura da PushInPay para o frontend
-    return new Response(
-      JSON.stringify(pushinPayData), // Retorna a resposta completa da PushInPay
-      {
+    return new Response(JSON.stringify(finalResponse), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
-      }
-    )
+    });
+
   } catch (err: any) {
-    console.error("Erro na Edge Function 'gerar-pix':", err.message);
-    return new Response(
-        JSON.stringify({ success: false, message: err.message }), 
-        {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400 
-        }
-    )
+    console.error("Erro fatal na Edge Function 'gerar-pix':", err.message);
+    return new Response(JSON.stringify({ success: false, message: err.message }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400 
+    });
   }
 })
