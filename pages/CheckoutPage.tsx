@@ -7,7 +7,7 @@ import { productService } from '../services/productService';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { supabase } from '../lib/supabase'; // IMPORTANTE: Garantindo a importação correta
+import { supabase } from '../supabaseClient.ts';
 
 export const CheckoutPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();

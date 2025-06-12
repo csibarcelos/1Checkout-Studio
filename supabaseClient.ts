@@ -12,3 +12,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // Exporta a instância única e corretamente inicializada do cliente
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+
+// No final do seu arquivo supabaseClient.ts
+
+// Helper para obter o ID do usuário logado de forma segura
+export const getSupabaseUserId = async (): Promise<string | null> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user?.id || null;
+};
+
