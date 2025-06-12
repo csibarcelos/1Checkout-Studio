@@ -15,7 +15,7 @@ import {
     CurrencyDollarIcon,
     WhatsAppIcon,
     generateWhatsAppLink
-} from '../constants.tsx'; // MODIFICADO DE @/constants.tsx
+} from '@/constants.tsx'; 
 import { useAuth } from '../contexts/AuthContext';
 
 const formatCurrency = (valueInCents: number, showSymbol = true): string => {

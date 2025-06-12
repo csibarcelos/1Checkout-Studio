@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -8,7 +7,7 @@ import { Input } from '../../components/ui/Input';
 import { User } from '../../types';
 // import { apiClient } from '../../services/apiClient'; // Removido
 import { useAuth } from '../../contexts/AuthContext';
-import { UsersIcon, SUPER_ADMIN_EMAIL } from '../../constants.tsx'; 
+import { UsersIcon, SUPER_ADMIN_EMAIL } from '../../constants'; 
 
 export const SuperAdminUsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);

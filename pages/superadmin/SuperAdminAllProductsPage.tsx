@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
@@ -8,7 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Product, User, Coupon, OrderBumpOffer, UpsellOffer } from '../../types';
 // import { apiClient } from '../../services/apiClient'; // Removido
 import { useAuth } from '../../contexts/AuthContext';
-import { CubeIcon, ChartPieIcon } from '../../constants.tsx'; 
+import { CubeIcon, ChartPieIcon } from '../../constants'; 
 
 const formatCurrency = (valueInCents: number): string => {
     return `R$ ${(valueInCents / 100).toFixed(2).replace('.', ',')}`;

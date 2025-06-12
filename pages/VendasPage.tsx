@@ -7,7 +7,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { Modal } from '../components/ui/Modal';
 import { Sale, PaymentStatus, PaymentMethod, SaleProductItem } from '../types';
 import { salesService } from '../services/salesService';
-import { ShoppingCartIcon, WhatsAppIcon, generateWhatsAppLink } from '../constants.tsx';
+import { ShoppingCartIcon, WhatsAppIcon, generateWhatsAppLink } from '@/constants';
 import { useAuth } from '../contexts/AuthContext';
 
 const getStatusClass = (status: PaymentStatus) => {
@@ -247,62 +247,53 @@ export const VendasPage: React.FC = () => {
                 {selectedSale.upsellPushInPayTransactionId && <InfoItem label="ID Transação Upsell" value={selectedSale.upsellPushInPayTransactionId} />}
                 <InfoItem label="Valor Total" value={<span className="font-bold text-primary">{formatCurrency(selectedSale.totalAmountInCents)}</span>} />
                 {selectedSale.upsellAmountInCents !== undefined && <InfoItem label="Valor Upsell" value={formatCurrency(selectedSale.upsellAmountInCents)} />}
-                {selectedSale.originalAmountBeforeDiscountInCents !== selectedSale.totalAmountInCents &&
-                    <InfoItem label="Total Original" value={formatCurrency(selectedSale.originalAmountBeforeDiscountInCents)} />
-                }
-                {selectedSale.discountAppliedInCents && selectedSale.discountAppliedInCents > 0 &&
-                    <InfoItem label="Desconto Aplicado" value={<span className="text-red-400">{formatCurrency(selectedSale.discountAppliedInCents)}</span>} />
-                }
-                {selectedSale.couponCodeUsed && <InfoItem label="Cupom Usado" value={selectedSale.couponCodeUsed} />}
-                <InfoItem label="Data da Venda" value={new Date(selectedSale.createdAt).toLocaleString()} />
-                {selectedSale.paidAt && <InfoItem label="Data do Pagamento" value={new Date(selectedSale.paidAt).toLocaleString()} />}
-                <InfoItem label="Status Pagamento" value={<span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusClass(selectedSale.status)}`}>{selectedSale.status.replace(/_/g, ' ').toUpperCase()}</span>} />
-                {selectedSale.upsellStatus && <InfoItem label="Status Upsell" value={<span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusClass(selectedSale.upsellStatus)}`}>{selectedSale.upsellStatus.replace(/_/g, ' ').toUpperCase()}</span>} />}
+                {selectedSale.discountAppliedInCents && selectedSale.discountAppliedInCents > 0 && (
+                  <>
+                    <InfoItem label="Valor Original" value={formatCurrency(selectedSale.originalAmountBeforeDiscountInCents)} />
+                    <InfoItem label={`Desconto (${selectedSale.couponCodeUsed || 'Aplicado'})`} value={<span className="text-red-400">-{formatCurrency(selectedSale.discountAppliedInCents)}</span>} />
+                  </>
+                )}
+                <InfoItem label="Comissão da Plataforma" value={selectedSale.platformCommissionInCents !== undefined ? formatCurrency(selectedSale.platformCommissionInCents) : 'N/A'} />
+                <InfoItem label="Data" value={new Date(selectedSale.createdAt).toLocaleString()} />
+                <InfoItem label="Data Pagamento" value={selectedSale.paidAt ? new Date(selectedSale.paidAt).toLocaleString() : 'N/A'} />
+                <InfoItem label="Status" value={<span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusClass(selectedSale.status)}`}>{selectedSale.status.replace(/_/g, ' ').toUpperCase()}</span>} />
                 <InfoItem label="Método de Pagamento" value={getPaymentMethodLabel(selectedSale.paymentMethod)} />
                </div>
             </section>
-            <section>
+             <section>
                 <h3 className="text-lg font-semibold text-neutral-100 border-b border-neutral-600 pb-2 mb-3">Cliente</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
                   <InfoItem label="Nome" value={selectedSale.customer.name} />
                   <InfoItem label="Email" value={selectedSale.customer.email} />
-                  <InfoItem
-                    label="WhatsApp"
+                  <InfoItem 
+                    label="WhatsApp" 
                     value={selectedSale.customer.whatsapp}
                     isWhatsApp={!!selectedSale.customer.whatsapp}
-                    whatsAppUrl={selectedSale.customer.whatsapp ? generateWhatsAppLink(selectedSale.customer.whatsapp, `Olá ${selectedSale.customer.name}, sobre seu pedido...`) : undefined}
-                  />
-                  {selectedSale.customer.ip && <InfoItem label="IP" value={selectedSale.customer.ip} />}
+                    whatsAppUrl={selectedSale.customer.whatsapp ? generateWhatsAppLink(selectedSale.customer.whatsapp, `Olá ${selectedSale.customer.name || 'Cliente'}, sobre seu pedido...`) : undefined}
+                   />
+                  <InfoItem label="IP" value={selectedSale.customer.ip || 'N/A'} />
                 </div>
-            </section>
+             </section>
              <section>
-                <h3 className="text-lg font-semibold text-neutral-100 border-b border-neutral-600 pb-2 mb-3">Produtos Comprados</h3>
+                <h3 className="text-lg font-semibold text-neutral-100 border-b border-neutral-600 pb-2 mb-3">Produtos</h3>
                 {Array.isArray(selectedSale.products) && selectedSale.products.map((item: SaleProductItem, idx: number) => (
-                    <div key={item.productId + '_' + idx} className="mb-2 p-3 bg-neutral-700/50 rounded-md">
-                        <p className="font-medium text-neutral-200">{item.name} {item.isOrderBump ? <span className="text-xs text-yellow-400">(Order Bump)</span> : item.isUpsell ? <span className="text-xs text-yellow-400">(Upsell)</span> : ''}</p>
-                        <p className="text-xs text-neutral-300">Quantidade: {item.quantity} | Preço Unit.: {formatCurrency(item.originalPriceInCents)}</p>
-                         {item.priceInCents !== item.originalPriceInCents && <p className="text-xs text-neutral-300">Preço Pago (com desc.): {formatCurrency(item.priceInCents)}</p>}
-                        {item.deliveryUrl && <InfoItem label="Link de Entrega" value={<a href={item.deliveryUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Acessar</a>} />}
+                    <div key={idx} className="mb-2 p-3 bg-neutral-700/50 rounded-md">
+                        <p className="font-semibold text-neutral-100">{item.name} {item.isOrderBump ? '(Order Bump)' : item.isUpsell ? '(Upsell)' : ''}</p>
+                        <div className="grid grid-cols-2 gap-x-2 text-xs">
+                          <InfoItem label="ID Produto" value={item.productId} />
+                          <InfoItem label="Qtd" value={item.quantity} />
+                          <InfoItem label="Preço Orig." value={formatCurrency(item.originalPriceInCents)} />
+                          <InfoItem label="Preço Pago" value={formatCurrency(item.priceInCents)} />
+                        </div>
                     </div>
                 ))}
              </section>
-             {selectedSale.commission && (
-                <section>
-                    <h3 className="text-lg font-semibold text-neutral-100 border-b border-neutral-600 pb-2 mb-3">Comissão</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
-                        <InfoItem label="Valor Bruto" value={formatCurrency(selectedSale.commission.totalPriceInCents)} />
-                        <InfoItem label="Taxa Gateway" value={formatCurrency(selectedSale.commission.gatewayFeeInCents)} />
-                        <InfoItem label="Comissão Líquida" value={<span className="font-bold text-green-400">{formatCurrency(selectedSale.commission.userCommissionInCents)}</span>} />
-                        <InfoItem label="Moeda" value={selectedSale.commission.currency} />
-                    </div>
-                </section>
-             )}
              {selectedSale.trackingParameters && Object.keys(selectedSale.trackingParameters).length > 0 && (
                 <section>
                     <h3 className="text-lg font-semibold text-neutral-100 border-b border-neutral-600 pb-2 mb-3">Parâmetros de Rastreamento (UTMs)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
                         {Object.entries(selectedSale.trackingParameters).map(([key, value]) => (
-                            <InfoItem key={key} label={key.replace(/_/g, ' ').toUpperCase()} value={value as string} />
+                            <InfoItem key={key} label={key} value={value as string} />
                         ))}
                     </div>
                 </section>

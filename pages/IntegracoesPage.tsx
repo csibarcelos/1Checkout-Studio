@@ -7,7 +7,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { Modal } from '../components/ui/Modal';
 import { settingsService } from '../services/settingsService';
 import { AppSettings, PixelIntegration, PixelType } from '../types';
-import { LinkIcon, KeyIcon, PlusIcon, PencilIcon, TrashIcon, TagIcon } from '../constants.tsx'; 
+import { LinkIcon, KeyIcon, PlusIcon, PencilIcon, TrashIcon, TagIcon } from '@/constants.tsx';
 import { useAuth } from '../contexts/AuthContext';
 
 const PIXEL_TYPES: PixelType[] = ['Facebook Pixel', 'Google Ads', 'GTM', 'TikTok Pixel'];
@@ -88,7 +88,7 @@ export const IntegracoesPage: React.FC = () => {
             pushinPayEnabled: pushinPayEnabled,
             utmifyEnabled: utmifyEnabled,
         },
-        pixelIntegrations: pixelIntegrations 
+        pixelIntegrations: pixelIntegrations
       };
       await settingsService.saveAppSettings(settingsToSave, accessToken);
       setSuccessMessage('Configurações de API salvas com sucesso!');
@@ -140,7 +140,7 @@ export const IntegracoesPage: React.FC = () => {
 
     let updatedPixels;
     if (editingPixel) {
-      updatedPixels = pixelIntegrations.map(p => 
+      updatedPixels = pixelIntegrations.map(p =>
         p.id === editingPixel.id ? { ...p, type: currentPixelType, settings: currentPixelSettings, enabled: currentPixelEnabled } : p
       );
     } else {
@@ -204,7 +204,7 @@ export const IntegracoesPage: React.FC = () => {
   const handlePixelTypeChange = (newType: PixelType) => {
     setCurrentPixelType(newType);
     let initialSettings: Record<string, string> = {};
-    switch(newType) {
+     switch(newType) {
         case 'Facebook Pixel': initialSettings = { pixelId: '' }; break;
         case 'Google Ads': initialSettings = { conversionId: '', conversionLabel: '' }; break;
         case 'GTM': initialSettings = { containerId: '' }; break;
@@ -213,164 +213,143 @@ export const IntegracoesPage: React.FC = () => {
     setCurrentPixelSettings(initialSettings);
   };
 
-  const renderPixelSpecificFields = () => {
-    switch (currentPixelType) {
-      case 'Facebook Pixel':
-        return <Input name="pixelId" label="ID do Pixel (Facebook)" value={currentPixelSettings.pixelId || ''} onChange={e => handlePixelSettingChange('pixelId', e.target.value)} placeholder="Ex: 123456789012345" />;
-      case 'Google Ads':
-        return <>
-          <Input name="conversionId" label="ID de Conversão (Google Ads)" value={currentPixelSettings.conversionId || ''} onChange={e => handlePixelSettingChange('conversionId', e.target.value)} placeholder="Ex: AW-123456789" />
-          <Input name="conversionLabel" label="Rótulo de Conversão (Google Ads)" value={currentPixelSettings.conversionLabel || ''} onChange={e => handlePixelSettingChange('conversionLabel', e.target.value)} placeholder="Ex: abcdefghijklmnop" />
-        </>;
-      case 'GTM':
-        return <Input name="containerId" label="ID do Contêiner (GTM)" value={currentPixelSettings.containerId || ''} onChange={e => handlePixelSettingChange('containerId', e.target.value)} placeholder="Ex: GTM-XXXXXXX" />;
-      case 'TikTok Pixel':
-        return <Input name="tiktokPixelId" label="ID do Pixel (TikTok)" value={currentPixelSettings.pixelId || ''} onChange={e => handlePixelSettingChange('pixelId', e.target.value)} placeholder="Ex: ABCDEFGHIJ1234567890" />;
-      default: return null;
-    }
-  };
-
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <LoadingSpinner size="lg" />
-        <p className="ml-3 text-neutral-600">Carregando configurações...</p>
+        <p className="ml-3 text-neutral-400">Carregando integrações...</p>
       </div>
     );
   }
-
+  
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 text-neutral-100">
       <div className="flex items-center space-x-3">
         <LinkIcon className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold text-neutral-800">Integrações</h1>
+        <h1 className="text-3xl font-bold">Integrações</h1>
       </div>
-      
-      {error && <p className="text-sm text-red-600 p-3 bg-red-50 rounded-md border border-red-200">{error}</p>}
-      {successMessage && <p className="text-sm text-green-600 p-3 bg-green-50 rounded-md border border-green-200">{successMessage}</p>}
 
-      <Card title="Tokens de API">
-        <form onSubmit={handleSubmitApiTokens} className="space-y-8">
-          <p className="text-sm text-neutral-600">
-            Insira seus tokens de API para integrar com serviços externos e habilite as integrações desejadas.
-          </p>
-          
-          <div className="space-y-3">
-            <Input
-              label="Token da API PushInPay" name="pushinPayToken" type="password" value={pushinPayToken}
-              onChange={(e) => setPushinPayToken(e.target.value)} placeholder="Cole seu token da PushInPay aqui"
-              icon={<KeyIcon className="h-5 w-5 text-neutral-400" />} autoComplete="off" disabled={isSaving || !accessToken}
-            />
-            <ToggleSwitch label="Habilitar Integração PushInPay" enabled={pushinPayEnabled} onChange={setPushinPayEnabled} disabled={isSaving || !accessToken}/>
-          </div>
-          
-          <div className="space-y-3">
-            <Input
-              label="Token da API UTMify" name="utmifyToken" type="password" value={utmifyToken}
-              onChange={(e) => setUtmifyToken(e.target.value)} placeholder="Cole seu token da UTMify aqui"
-              icon={<KeyIcon className="h-5 w-5 text-neutral-400" />} autoComplete="off" disabled={isSaving || !accessToken}
-            />
-             <ToggleSwitch label="Habilitar Integração UTMify" enabled={utmifyEnabled} onChange={setUtmifyEnabled} disabled={isSaving || !accessToken}/>
-          </div>
-          
-          <div className="flex justify-end pt-4 border-t border-neutral-200">
-            <Button type="submit" variant="primary" isLoading={isSaving} disabled={isSaving || !accessToken}>
-              Salvar Tokens de API
-            </Button>
-          </div>
-        </form>
-      </Card>
+      {error && <p className="my-4 text-sm text-red-400 p-3 bg-red-800/20 rounded-md border border-red-600/50">{error}</p>}
+      {successMessage && <p className="my-4 text-sm text-green-400 p-3 bg-green-800/20 rounded-md border border-green-600/50">{successMessage}</p>}
 
-       <Card title="Pixels de Rastreamento">
-        <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                 <p className="text-sm text-neutral-600">
-                    Configure pixels para rastrear eventos de compra e otimizar suas campanhas.
-                </p>
-                <Button onClick={() => openPixelModal()} variant="secondary" leftIcon={<PlusIcon className="h-5 w-5"/>} disabled={isSaving || !accessToken}>
-                    Adicionar Pixel
+      <form onSubmit={handleSubmitApiTokens}>
+        <Card title="Chaves de API (Tokens)" className="bg-neutral-800 border-neutral-700">
+            <div className="space-y-6">
+                <div className="space-y-3 p-4 border border-neutral-700 rounded-lg bg-neutral-700/30">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-neutral-100">PushInPay (Gateway de Pagamento PIX)</h3>
+                        <ToggleSwitch label="Habilitar" srLabel="Habilitar PushInPay" enabled={pushinPayEnabled} onChange={setPushinPayEnabled} disabled={isSaving}/>
+                    </div>
+                    <Input
+                        label="Token da API PushInPay"
+                        name="pushinPayToken"
+                        type="password"
+                        value={pushinPayToken}
+                        onChange={(e) => setPushinPayToken(e.target.value)}
+                        placeholder="Cole seu token da API PushInPay aqui"
+                        icon={<KeyIcon className="h-5 w-5 text-neutral-400" />}
+                        disabled={isSaving || !pushinPayEnabled}
+                        autoComplete="new-password"
+                    />
+                     <p className="text-xs text-neutral-400">Integração para processamento de pagamentos PIX.</p>
+                </div>
+
+                 <div className="space-y-3 p-4 border border-neutral-700 rounded-lg bg-neutral-700/30">
+                    <div className="flex justify-between items-center">
+                         <h3 className="text-lg font-semibold text-neutral-100">UTMify (Rastreamento Avançado)</h3>
+                        <ToggleSwitch label="Habilitar" srLabel="Habilitar UTMify" enabled={utmifyEnabled} onChange={setUtmifyEnabled} disabled={isSaving}/>
+                    </div>
+                    <Input
+                        label="Token da API UTMify"
+                        name="utmifyToken"
+                        type="password"
+                        value={utmifyToken}
+                        onChange={(e) => setUtmifyToken(e.target.value)}
+                        placeholder="Cole seu token da API UTMify aqui"
+                        icon={<KeyIcon className="h-5 w-5 text-neutral-400" />}
+                        disabled={isSaving || !utmifyEnabled}
+                        autoComplete="new-password"
+                    />
+                    <p className="text-xs text-neutral-400">Integração para rastreamento de UTMs e comissões.</p>
+                </div>
+            </div>
+             <div className="mt-6 flex justify-end pt-4 border-t border-neutral-700">
+                <Button type="submit" variant="primary" isLoading={isSaving} disabled={isSaving}>
+                    Salvar Chaves de API
                 </Button>
             </div>
-
-            {pixelIntegrations.length === 0 && (
-                <p className="text-neutral-500 text-center py-4">Nenhum pixel configurado.</p>
-            )}
-
-            <div className="space-y-3">
-                {pixelIntegrations.map(pixel => (
-                    <div key={pixel.id} className="p-4 border border-neutral-200 rounded-md bg-white shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                        <div className="flex-grow">
-                            <div className="flex items-center mb-1">
-                                <TagIcon className="h-5 w-5 text-primary mr-2"/>
-                                <span className="font-semibold text-neutral-700">{pixel.type}</span>
-                            </div>
-                            <p className="text-xs text-neutral-500">
-                                {pixel.type === 'Facebook Pixel' && `ID: ${pixel.settings.pixelId || 'N/A'}`}
-                                {pixel.type === 'Google Ads' && `ID Conversão: ${pixel.settings.conversionId || 'N/A'}`}
-                                {pixel.type === 'GTM' && `ID Contêiner: ${pixel.settings.containerId || 'N/A'}`}
-                                {pixel.type === 'TikTok Pixel' && `ID: ${pixel.settings.pixelId || 'N/A'}`}
-                            </p>
-                        </div>
-                        <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-shrink-0">
-                            <ToggleSwitch enabled={pixel.enabled} onChange={async (enabled) => {
-                                const updatedPixels = pixelIntegrations.map(p => p.id === pixel.id ? {...p, enabled} : p);
-                                setPixelIntegrations(updatedPixels);
-                                if (!accessToken) return;
-                                setIsSaving(true);
-                                try {
-                                    await settingsService.saveAppSettings({ pixelIntegrations: updatedPixels, apiTokens: { pushinPay: pushinPayToken.trim(), utmify: utmifyToken.trim(), pushinPayEnabled, utmifyEnabled } }, accessToken);
-                                    setSuccessMessage('Status do pixel atualizado.');
-                                } catch (err) { setError('Falha ao atualizar status do pixel.')}
-                                finally { setIsSaving(false); }
-                            }} srLabel={`Habilitar ${pixel.type}`} disabled={isSaving}/>
-                            <Button variant="ghost" size="sm" onClick={() => openPixelModal(pixel)} className="p-1.5" title="Editar">
-                                <PencilIcon className="h-5 w-5 text-neutral-500 hover:text-primary"/>
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeletePixel(pixel.id)} className="p-1.5" title="Excluir">
-                                <TrashIcon className="h-5 w-5 text-neutral-500 hover:text-red-500"/>
-                            </Button>
-                        </div>
+        </Card>
+      </form>
+      
+      <Card title="Pixels de Rastreamento" className="bg-neutral-800 border-neutral-700">
+        <div className="space-y-4">
+            {pixelIntegrations.length === 0 && <p className="text-neutral-400">Nenhum pixel de rastreamento configurado.</p>}
+            {pixelIntegrations.map(pixel => (
+                <div key={pixel.id} className="p-4 border border-neutral-700 rounded-lg bg-neutral-700/30 flex justify-between items-center">
+                    <div>
+                        <h4 className="text-md font-semibold text-neutral-100 flex items-center">
+                           <TagIcon className="h-5 w-5 mr-2 text-primary"/> {pixel.type}
+                        </h4>
+                        <p className="text-xs text-neutral-400">
+                            {Object.entries(pixel.settings).map(([key, val]) => `${key}: ${val.substring(0,20)}${val.length > 20 ? '...' : ''}`).join(', ')}
+                        </p>
                     </div>
-                ))}
-            </div>
+                    <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${pixel.enabled ? 'bg-green-600/50 text-green-300' : 'bg-neutral-600 text-neutral-300'}`}>
+                            {pixel.enabled ? 'Ativo' : 'Inativo'}
+                        </span>
+                        <Button variant="ghost" size="sm" onClick={() => openPixelModal(pixel)} title="Editar Pixel"><PencilIcon className="h-5 w-5"/></Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeletePixel(pixel.id)} title="Excluir Pixel" className="text-red-500 hover:text-red-400"><TrashIcon className="h-5 w-5"/></Button>
+                    </div>
+                </div>
+            ))}
+             <Button variant="secondary" onClick={() => openPixelModal()} leftIcon={<PlusIcon className="h-5 w-5"/>} className="w-full mt-2">
+                Adicionar Novo Pixel
+            </Button>
         </div>
       </Card>
-
+      
       {isPixelModalOpen && (
-        <Modal isOpen={isPixelModalOpen} onClose={closePixelModal} title={editingPixel ? "Editar Pixel" : "Adicionar Novo Pixel"}>
-            <div className="space-y-4 text-neutral-700">
-                <div>
-                    <label htmlFor="pixelType" className="block text-sm font-medium text-neutral-700 mb-1">Tipo de Pixel</label>
-                    <select id="pixelType" value={currentPixelType} onChange={e => handlePixelTypeChange(e.target.value as PixelType)}
-                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-neutral-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
+         <Modal isOpen={isPixelModalOpen} onClose={closePixelModal} title={editingPixel ? "Editar Pixel" : "Adicionar Novo Pixel"} size="lg">
+            <div className="space-y-4 text-neutral-300">
+                 <div>
+                    <label htmlFor="pixelType" className="block text-sm font-medium mb-1">Tipo de Pixel</label>
+                    <select 
+                        id="pixelType" 
+                        value={currentPixelType}
+                        onChange={(e) => handlePixelTypeChange(e.target.value as PixelType)}
+                        className="block w-full p-2.5 border rounded-md shadow-sm focus:outline-none sm:text-sm transition-colors duration-150 bg-neutral-700 border-neutral-600 focus:border-primary focus:ring-2 focus:ring-primary/70 text-neutral-100 placeholder-neutral-400"
+                        disabled={isSaving}
+                    >
                         {PIXEL_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
                     </select>
+                 </div>
+
+                {currentPixelType === 'Facebook Pixel' && (
+                    <Input label="ID do Pixel do Facebook" value={currentPixelSettings.pixelId || ''} onChange={(e) => handlePixelSettingChange('pixelId', e.target.value)} placeholder="Ex: 123456789012345" disabled={isSaving}/>
+                )}
+                {currentPixelType === 'Google Ads' && (<>
+                    <Input label="ID de Conversão Google Ads" value={currentPixelSettings.conversionId || ''} onChange={(e) => handlePixelSettingChange('conversionId', e.target.value)} placeholder="Ex: AW-123456789" disabled={isSaving}/>
+                    <Input label="Rótulo de Conversão Google Ads" value={currentPixelSettings.conversionLabel || ''} onChange={(e) => handlePixelSettingChange('conversionLabel', e.target.value)} placeholder="Ex: abcDEfghiJKLmnopQRS" disabled={isSaving}/>
+                </>)}
+                {currentPixelType === 'GTM' && (
+                    <Input label="ID do Contêiner GTM" value={currentPixelSettings.containerId || ''} onChange={(e) => handlePixelSettingChange('containerId', e.target.value)} placeholder="Ex: GTM-XXXXXXX" disabled={isSaving}/>
+                )}
+                {currentPixelType === 'TikTok Pixel' && (
+                     <Input label="ID do Pixel do TikTok" value={currentPixelSettings.pixelId || ''} onChange={(e) => handlePixelSettingChange('pixelId', e.target.value)} placeholder="Ex: ABCDEFGHIJKLMN" disabled={isSaving}/>
+                )}
+                
+                <ToggleSwitch label="Habilitar Pixel" enabled={currentPixelEnabled} onChange={setCurrentPixelEnabled} disabled={isSaving}/>
+                
+                {pixelModalError && <p className="text-sm text-red-400 p-2 bg-red-800/20 rounded-md border border-red-600/50">{pixelModalError}</p>}
+
+                <div className="flex justify-end space-x-3 pt-3">
+                    <Button variant="ghost" onClick={closePixelModal} disabled={isSaving}>Cancelar</Button>
+                    <Button variant="primary" onClick={handleSavePixel} isLoading={isSaving} disabled={isSaving}>Salvar Pixel</Button>
                 </div>
-                {renderPixelSpecificFields()}
-                <ToggleSwitch label="Habilitar este Pixel" enabled={currentPixelEnabled} onChange={setCurrentPixelEnabled} />
-                {pixelModalError && <p className="text-sm text-red-500 p-2 bg-red-50 rounded-md">{pixelModalError}</p>}
-            </div>
-            <div className="mt-6 flex justify-end space-x-3">
-                <Button variant="ghost" onClick={closePixelModal} disabled={isSaving}>Cancelar</Button>
-                <Button variant="primary" onClick={handleSavePixel} isLoading={isSaving} disabled={isSaving}>Salvar Pixel</Button>
             </div>
         </Modal>
       )}
-
-       <Card title="Outras Integrações Avançadas">
-        <div className="text-center py-10">
-          <LinkIcon className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
-          <p className="text-neutral-500 max-w-md mx-auto">
-            Webhooks para notificar sistemas externos sobre vendas e outros eventos estarão disponíveis aqui em breve.
-          </p>
-          <div className="mt-6">
-            <span className="inline-block bg-yellow-200 text-yellow-800 text-sm font-semibold px-3 py-1.5 rounded-full">
-              EM BREVE
-            </span>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 };

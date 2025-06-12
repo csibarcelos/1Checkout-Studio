@@ -8,13 +8,13 @@ import {
   PushInPayTransactionStatusData,
   SaleProductItem
 } from '../types';
-import { PUSHINPAY_API_BASE } from '../constants.tsx'; // MODIFICADO DE @/constants.tsx
+import { PUSHINPAY_API_BASE, MOCK_WEBHOOK_URL } from '@/constants.tsx'; 
 
 // Variável para simular se o pagamento foi bem-sucedido no polling
 let simulatedPaymentSuccess = false;
 let simulatedPaymentAttempts = 0;
 
-export const pushInPayService = {
+export const pushinPayService = {
   generatePixCharge: async (
     payload: PushInPayPixRequest,
     productOwnerUserId: string // Modificado: ID do dono do produto, usado pela Edge Function
@@ -41,62 +41,59 @@ export const pushInPayService = {
     
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
 
-    const mockPixId = `mock_pushinpay_pix_${Date.now()}_owner_${productOwnerUserId.substring(0,5)}`;
-    const pixData: PushInPayPixResponseData = {
-      id: mockPixId,
-      qr_code: `MOCK_QR_CODE_FOR_${mockPixId}`,
-      qr_code_base64: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', // Placeholder
-      status: PaymentStatus.WAITING_PAYMENT,
-      value: payload.value
-    };
-    
-    console.log("PushInPayService: Simulated PIX Charge generation (to be replaced by Edge Function call):", pixData);
+    // Added return statement for simulation
     return {
-      success: true,
-      data: pixData,
-      message: "Cobrança PIX gerada (simulação via frontend - IMPLEMENTAR EDGE FUNCTION)."
+      success: true, 
+      data: {
+        id: `sim_pix_${Date.now()}_${payload.value}`,
+        qr_code: `PIX_QR_CODE_FOR_${payload.value/100}_REALIS_TRANSACTION_ID_PLACEHOLDER`,
+        qr_code_base64: Buffer.from(`SIMULATED_BASE64_QR_CODE_FOR_${payload.value/100}_REALIS`).toString('base64'),
+        status: PaymentStatus.WAITING_PAYMENT,
+        value: payload.value,
+      },
+      message: 'PIX charge generated (simulated).'
     };
   },
 
-  checkPaymentStatus: async (
-    transactionId: string,
-    productOwnerUserId: string // Modificado: ID do dono do produto
-  ): Promise<PushInPayTransactionStatusResponse> => {
-    console.log("PushInPayService: checkPaymentStatus called for transactionId:", transactionId, "for productOwnerUserId:", productOwnerUserId);
-    console.log("PushInPayService: Esta função deve chamar uma Supabase Edge Function ('verificar-status-pix') que usará o productOwnerUserId para buscar o token PushInPay com segurança no backend.");
-
-    // Exemplo de como a Edge Function seria chamada:
-    // try {
-    //   const { data: edgeFunctionResponse, error: edgeFunctionError } = await supabase.functions.invoke('verificar-status-pix', {
-    //     body: { transactionId, productOwnerUserId }
-    //   });
-    //   if (edgeFunctionError) throw edgeFunctionError;
-    //   return edgeFunctionResponse as PushInPayTransactionStatusResponse;
-    // } catch (error: any) {
-    //   console.error("Error calling Supabase Edge Function 'verificar-status-pix':", error);
-    //   return { success: false, message: error.message || "Falha ao chamar a função de verificação de status PIX no servidor." };
-    // }
-
-    // Simulação continua abaixo:
-    await new Promise(resolve => setTimeout(resolve, 500)); 
-    
+  checkPaymentStatus: async (transactionId: string, _productOwnerUserId: string): Promise<PushInPayTransactionStatusResponse> => {
+    // _productOwnerUserId would be used by a real Edge Function to get API keys
+    console.log("PushInPayService: checkPaymentStatus called for transactionId:", transactionId);
     simulatedPaymentAttempts++;
-    if (!simulatedPaymentSuccess && simulatedPaymentAttempts >= 3) {
+    // Simulate success after a few tries for demonstration
+    // Ensure we only simulate success for our simulated PIX transactions
+    if (simulatedPaymentAttempts >= 2 && transactionId.startsWith("sim_pix_")) { 
         simulatedPaymentSuccess = true;
     }
-    
-    const statusData: PushInPayTransactionStatusData = {
-        id: transactionId,
-        status: simulatedPaymentSuccess ? PaymentStatus.PAID : PaymentStatus.WAITING_PAYMENT,
-        value: 1000, 
-        paid_at: simulatedPaymentSuccess ? new Date().toISOString() : undefined
-    };
-    
-    console.log("PushInPayService: Simulated payment status (to be replaced by Edge Function call):", statusData);
-    return {
-      success: true,
-      data: statusData,
-      message: "Status do pagamento verificado (simulação via frontend - IMPLEMENTAR EDGE FUNCTION)."
-    };
+
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+
+    if (simulatedPaymentSuccess && transactionId.startsWith("sim_pix_")) {
+        const valueFromSimId = parseInt(transactionId.split('_')[3] || "0"); // Adjusted index for sim_pix_timestamp_value
+        console.log(`PushInPayService: Simulating PAID for ${transactionId}`);
+        simulatedPaymentAttempts = 0; // Reset for next potential payment
+        simulatedPaymentSuccess = false; // Reset for next potential payment
+        return {
+            success: true,
+            data: {
+                id: transactionId,
+                status: PaymentStatus.PAID,
+                value: valueFromSimId, 
+                paid_at: new Date().toISOString()
+            },
+            message: "Payment status check (simulated success)."
+        };
+    } else {
+        console.log(`PushInPayService: Simulating WAITING_PAYMENT for ${transactionId}`);
+        const valueFromSimId = transactionId.startsWith("sim_pix_") ? parseInt(transactionId.split('_')[3] || "0") : 0;
+        return {
+            success: true, 
+            data: {
+                id: transactionId,
+                status: PaymentStatus.WAITING_PAYMENT,
+                value: valueFromSimId, 
+            },
+            message: "Payment status check (simulated waiting)."
+        };
+    }
   }
 };

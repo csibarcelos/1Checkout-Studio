@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from "react-router-dom";
 import { Product } from '../types';
@@ -8,7 +7,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { Modal } from '../components/ui/Modal';
-import { CubeIcon, PlusIcon, DocumentDuplicateIcon as DocumentDuplicateIconDefault, CheckCircleIcon, TrashIcon as TrashIconDefault } from '../constants.tsx'; // MODIFICADO DE @/constants.tsx
+import { CubeIcon, PlusIcon, DocumentDuplicateIcon as DocumentDuplicateIconDefault, CheckCircleIcon, TrashIcon as TrashIconDefault } from '@/constants.tsx'; 
 import { useAuth } from '../contexts/AuthContext'; 
 
 const EyeIcon = (props: React.SVGProps<SVGSVGElement>) => (

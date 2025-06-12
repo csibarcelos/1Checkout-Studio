@@ -1,6 +1,7 @@
+
 import React from 'react';
-import { NavItemConfig } from './types'; // Correct: from root
-export const SUPER_ADMIN_EMAIL = 'usedonjuan@gmail.com'; // MOVIDO PARA O TOPO
+import { NavItemConfig } from './types'; 
+export const SUPER_ADMIN_EMAIL = 'usedonjuan@gmail.com'; 
 
 import {
   AdjustmentsHorizontalIcon,
@@ -154,19 +155,19 @@ export const ListUnorderedIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props
   );
 };
 
-export const ChartPieIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsChartPieIcon;
-export const CurrencyDollarIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsCurrencyDollarIcon;
-export const UserGroupIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsUserGroupIcon;
-export const DocumentDuplicateIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsDocumentDuplicateIcon;
-export const TrashIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsTrashIcon;
-export const PlusIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsPlusIcon;
-export const CheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsCheckCircleIcon;
-export const XMarkIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsXMarkIcon;
-export const KeyIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsKeyIcon;
-export const InformationCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsInformationCircleIcon;
-export const PencilIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsPencilIcon;
-export const TagIcon: React.FC<React.SVGProps<SVGSVGElement>> = HeroIconsTagIcon;
-export const Bars3IconHero: React.FC<React.SVGProps<SVGSVGElement>> = Bars3Icon;
+export const ChartPieIcon = HeroIconsChartPieIcon;
+export const CurrencyDollarIcon = HeroIconsCurrencyDollarIcon;
+export const UserGroupIcon = HeroIconsUserGroupIcon;
+export const DocumentDuplicateIcon = HeroIconsDocumentDuplicateIcon;
+export const TrashIcon = HeroIconsTrashIcon;
+export const PlusIcon = HeroIconsPlusIcon;
+export const CheckCircleIcon = HeroIconsCheckCircleIcon;
+export const XMarkIcon = HeroIconsXMarkIcon;
+export const KeyIcon = HeroIconsKeyIcon;
+export const InformationCircleIcon = HeroIconsInformationCircleIcon;
+export const PencilIcon = HeroIconsPencilIcon;
+export const TagIcon = HeroIconsTagIcon;
+export const Bars3IconHero = Bars3Icon;
 
 /**
  * Renders the application logo.

@@ -1,10 +1,10 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { AuthUser, Session } from '@supabase/supabase-js';
-import { supabase, getSupabaseUserId } from '../supabaseClient'; // Correct: from root
-import { User as AppUserType } from '../types'; // Correct: from root
-import { Database } from '../types/supabase'; // Correct: from root/types/
-import { SUPER_ADMIN_EMAIL } from '../constants.tsx'; // MODIFICADO DE @/constants.tsx
+import { supabase, getSupabaseUserId } from '../supabaseClient'; 
+import { User as AppUserType } from '../types'; 
+import { Database } from '../types/supabase'; 
+import { SUPER_ADMIN_EMAIL } from '@/constants.tsx'; 
 
 export interface AppUser extends AppUserType {
   isSuperAdmin: boolean;

@@ -1,6 +1,6 @@
 
 import { UtmifyOrderPayload, UtmifyResponse } from '../types';
-import { UTMIFY_API_BASE } from '../constants.tsx'; // MODIFICADO DE @/constants.tsx
+import { UTMIFY_API_BASE } from '@/constants.tsx'; 
 
 export const utmifyService = {
   sendOrderData: async (payload: UtmifyOrderPayload, utmifyToken?: string): Promise<UtmifyResponse> => {

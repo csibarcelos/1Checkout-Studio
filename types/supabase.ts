@@ -1,9 +1,6 @@
-
 // types/supabase.ts
 // This file should ideally be populated by `supabase gen types typescript`.
 // The structure below is based on the assumed database schema.
-
-import { SaleProductItem, PaymentMethod, PaymentStatus, FunnelStage, PixelIntegration } from "../types";
 
 export type Json =
   | string

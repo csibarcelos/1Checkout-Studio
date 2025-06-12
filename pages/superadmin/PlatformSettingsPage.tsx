@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -7,7 +6,7 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { settingsService } from '../../services/settingsService';
 import { PlatformSettings } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { CogIcon, CurrencyDollarIcon, KeyIcon } from '../../constants.tsx'; 
+import { CogIcon, CurrencyDollarIcon, KeyIcon } from '../../constants'; 
 
 export const PlatformSettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<PlatformSettings | null>(null);

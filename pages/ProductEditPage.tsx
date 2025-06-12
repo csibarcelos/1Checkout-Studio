@@ -8,10 +8,10 @@ import { Input, Textarea } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 // Removed Modal import
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { COLOR_PALETTE_OPTIONS, TrashIcon, PlusIcon } from '../constants.tsx'; // MODIFICADO DE @/constants.tsx // Removed editor icons
+import { COLOR_PALETTE_OPTIONS, TrashIcon, PlusIcon } from '@/constants.tsx'; 
 import { useAuth } from '../contexts/AuthContext';
-import { MiniEditor } from '../components/shared/MiniEditor'; // Import shared MiniEditor
-import { CouponFormModal } from '../components/shared/CouponFormModal'; // Import shared CouponFormModal
+import { MiniEditor } from '../components/shared/MiniEditor'; 
+import { CouponFormModal } from '../components/shared/CouponFormModal'; 
 
 // MiniEditor Component (REMOVED - NOW IMPORTED)
 // CouponFormModal Component (REMOVED - NOW IMPORTED)

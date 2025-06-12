@@ -1,8 +1,7 @@
-
 import { AppSettings, PlatformSettings, PixelIntegration } from '../types';
 import { supabase, getSupabaseUserId } from '../supabaseClient'; // Updated import
 import { Database, Json } from '../types/supabase';
-import { COLOR_PALETTE_OPTIONS } from '../constants.tsx';
+import { COLOR_PALETTE_OPTIONS } from '../constants';
 
 type AppSettingsRow = Database['public']['Tables']['app_settings']['Row'];
 type AppSettingsInsert = Database['public']['Tables']['app_settings']['Insert']; // Use Insert type for upsert payload
