@@ -8,7 +8,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { CheckCircleIcon, PHONE_COUNTRY_CODES, DocumentDuplicateIcon, TagIcon, MOCK_WEBHOOK_URL, PLATFORM_NAME } from '../constants'; 
+import { CheckCircleIcon, PHONE_COUNTRY_CODES, DocumentDuplicateIcon, TagIcon, MOCK_WEBHOOK_URL, PLATFORM_NAME } from '@/constants.tsx'; 
 import { pushinPayService } from '../services/pushinPayService';
 import { settingsService } from '../services/settingsService';
 import { salesService } from '../services/salesService';
@@ -473,9 +473,7 @@ export const CheckoutPage: React.FC = () => {
             }
         }
         
-        // Chamada para worldTimeApiService removida
-        // const timeInfo = await worldTimeApiService.getWorldTimeInfo();
-        // setIpAddress(timeInfo.clientIp); // Atribuição do IP removida
+        // Chamada para worldTimeApiService removida na última interação do usuário.
 
       } catch (err: any) {
         setError(err.message || "Falha ao carregar informações do produto ou configurações.");
@@ -691,9 +689,9 @@ export const CheckoutPage: React.FC = () => {
     try {
       const pushInPayIsEnabled = appSettings.apiTokens?.pushinPayEnabled ?? false;
       
-      if (!pushInPayIsEnabled) {
-          throw new Error("O processamento de pagamento PIX não está habilitado para este vendedor.");
-      }
+      // if (!pushInPayIsEnabled) { 
+      //     throw new Error("O processamento de pagamento PIX não está habilitado para este vendedor.");
+      // }
       
       const response = await pushinPayService.generatePixCharge(pixPayload, product.platformUserId);
 
